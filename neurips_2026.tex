@@ -1,0 +1,387 @@
+\documentclass{article}
+
+% if you need to pass options to natbib, use, e.g.:
+%     \PassOptionsToPackage{numbers, compress}{natbib}
+% before loading neurips_2026
+
+% The authors should use one of these tracks.
+% Before accepting by the NeurIPS conference, select one of the options below.
+% 0. "default" for submission
+\usepackage{neurips_2026}
+% the "default" option is equal to the "main" option, which is used for the Main Track with double-blind reviewing.
+% 1. "main" option is used for the Main Track
+%  \usepackage[main]{neurips_2026}
+% 2. "position" option is used for the Position Paper Track
+%  \usepackage[position]{neurips_2026}
+% 3. "eandd" option is used for the Evaluations & Datasets Track
+ % \usepackage[eandd]{neurips_2026}
+ % if you need to opt-in for a single-blind submission in the E&D track:
+ %\usepackage[eandd, nonanonymous]{neurips_2026}
+% 4. "creativeai" option is used for the Creative AI Track
+%  \usepackage[creativeai]{neurips_2026}
+% 5. "sglblindworkshop" option is used for the Workshop with single-blind reviewing
+ % \usepackage[sglblindworkshop]{neurips_2026}
+% 6. "dblblindworkshop" option is used for the Workshop with double-blind reviewing
+%  \usepackage[dblblindworkshop]{neurips_2026}
+
+% After being accepted, the authors should add "final" behind the track to compile a camera-ready version.
+% 1. Main Track
+ % \usepackage[main, final]{neurips_2026}
+% 2. Position Paper Track
+%  \usepackage[position, final]{neurips_2026}
+% 3. Evaluations & Datasets Track
+ % \usepackage[eandd, final]{neurips_2026}
+% 4. Creative AI Track
+%  \usepackage[creativeai, final]{neurips_2026}
+% 5. Workshop with single-blind reviewing
+%  \usepackage[sglblindworkshop, final]{neurips_2026}
+% 6. Workshop with double-blind reviewing
+%  \usepackage[dblblindworkshop, final]{neurips_2026}
+% Note. For the workshop paper template, both \title{} and \workshoptitle{} are required, with the former indicating the paper title shown in the title and the latter indicating the workshop title displayed in the footnote.
+% For workshops (5., 6.), the authors should add the name of the workshop, "\workshoptitle" command is used to set the workshop title.
+% \workshoptitle{WORKSHOP TITLE}
+
+% "preprint" option is used for arXiv or other preprint submissions
+ % \usepackage[preprint]{neurips_2026}
+
+% to avoid loading the natbib package, add option nonatbib:
+%    \usepackage[nonatbib]{neurips_2026}
+
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{amsmath}        % for mathematical environments
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
+\usepackage{xcolor}         % colors
+\usepackage{cleveref}
+
+% Note. For the workshop paper template, both \title{} and \workshoptitle{} are required, with the former indicating the paper title shown in the title and the latter indicating the workshop title displayed in the footnote. 
+\title{Rediscovering Ramsey Numbers via Frank Wolfe}
+
+
+% The \author macro works with any number of authors. There are two commands
+% used to separate the names and addresses of multiple authors: \And and \AND.
+%
+% Using \And between authors leaves it to LaTeX to determine where to break the
+% lines. Using \AND forces a line break at that point. So, if LaTeX puts 3 of 4
+% authors names on the first line, and the last on the second line, try using
+% \AND instead of \And before the third author name.
+
+
+\author{%
+  David S.~Hippocampus\thanks{Use footnote for providing further information
+    about author (webpage, alternative address)---\emph{not} for acknowledging
+    funding agencies.} \\
+  Department of Computer Science\\
+  Cranberry-Lemon University\\
+  Pittsburgh, PA 15213 \\
+  \texttt{hippo@cs.cranberry-lemon.edu} \\
+  % examples of more authors
+  % \And
+  % Coauthor \\
+  % Affiliation \\
+  % Address \\
+  % \texttt{email} \\
+  % \AND
+  % Coauthor \\
+  % Affiliation \\
+  % Address \\
+  % \texttt{email} \\
+  % \And
+  % Coauthor \\
+  % Affiliation \\
+  % Address \\
+  % \texttt{email} \\
+  % \And
+  % Coauthor \\
+  % Affiliation \\
+  % Address \\
+  % \texttt{email} \\
+}
+
+
+\begin{document}
+
+
+\maketitle
+
+
+\begin{abstract}
+  Certifying lower bounds for Ramsey numbers is a challenging problem in combinatorial optimization. We present a Frank Wolfe type algorithm operating on a relaxed version (by considering stochastic graphs) which turned out to be surprisingly effective on diagonal and close to diagonal cases.
+\end{abstract}
+
+
+
+\section{Introduction}
+
+Ramsey theory studies the inevitable emergence of order within large, seemingly unstructured systems. A foundational problem in the field is finding lower bounds for Ramsey numbers, which can be naturally cast as a discrete optimization task on graphs. Let $G_n = (V, E)$ denote the complete graph on $n$ vertices, where every pair of distinct vertices is connected by an edge. We consider a binary assignment---or \emph{coloring}---of these edges, represented by a mapping $f: E \to \{0, 1\}$. 
+
+A central object of interest is a \emph{clique}, which is simply a fully connected subgraph. In the context of our binary edge assignment, the Ramsey number $R(r, s)$ is defined as the minimum number of vertices $n$ such that every edge coloring of $G_n$ is guaranteed to contain either a clique of size $r$ where all edges are colored $1$, or a clique of size $s$ where all edges are colored $0$. Proving a lower bound $R(r, s) > n$ therefore requires finding a \emph{counterexample}: a coloring of $G_n$ that avoids both of these monochromatic structures.
+
+This search can be formulated computationally as a discrete optimization problem, where the goal is to find a coloring that minimizes the total number of such "violating" cliques. By associating each edge $(i, j)$ with its binary color value $e_{ij} \in \{0, 1\}$, the total number of cliques of size $r$ in color $1$ plus the number of cliques of size $s$ in color $0$ can be expressed algebraically as:
+
+\begin{equation}\label{eq:no-monochromatic-cliques}
+    M_f = \sum_{C \in \mathcal{C}_r} \prod_{i, j \in C: i < j} e_{ij} \quad + \quad \sum_{C \in \mathcal{C}_s} \prod_{i, j \in C: i < j} \left(1 - e_{ij}\right),
+\end{equation}
+
+where $\mathcal{C}_r$ and $\mathcal{C}_s$ denote the sets of all vertex subsets of sizes $r$ and $s$, respectively. We have hence already derived the optimization problem which one can try to solve to obtain a lower bound for $R(r, s)$:
+
+\begin{equation}\label{eq:opt-problem}
+    \min_{f: E \to \{0, 1\}} M_f
+\end{equation}
+
+\cite{morris2026recentresultsramseytheory} provides a recent overview of the state of the art in Ramsey theory.
+
+Further plan:
+\begin{itemize}
+  \item very little ramsey numbers are actually known. already for R(5, 5) we only have bounds
+  \item there are n choose 2 edges so 2 ** n choose 2 possible colorings -> large search space
+  \item the number of cliques also grows nasty with r and s (and obviously n) -> hard to optimize
+  \item typical approaches include SA, tabu search -> brief history of the quest for ramsey numbers, erdos quote etc.
+  \item many examples certifying lower bounds are highly structured, i.e. circulants, Payley graphs, etc. Recently, \cite{nagda2026reinforcedgenerationcombinatorialstructures} made use of these structures when finding new lower bounds very far from the diagonal, where evaluating the whole objective becomes prohibitively expensive.
+
+\end{itemize}
+
+\section{Time to Relax}
+
+While most traditional approches focus on exploring the large, yet finite discrete search space, the objective allows for a straightforward relaxation:
+
+\begin{equation}\label{eq:relaxed-problem}
+    \min_{f: E \to [0, 1]} M_f,
+\end{equation}
+
+where $f$ is now a \emph{probabilistic} coloring of the edges.
+
+
+Another insightful way to write the problem down is:
+
+\begin{align}\label{eq:constrained-problem}
+    \min &\sum_{C \in \mathcal{C}_r} \prod_{i, j \in C: i < j} e_{ij} \quad + \quad \sum_{C \in \mathcal{C}_s} \prod_{i, j \in C: i < j} \left(1 - e_{ij}\right), \\
+    \text{s. t.} &e \in [0, 1]^{\binom{n}{2}}.
+\end{align}
+
+Note that this is a polynomial of degree $\binom{\max(r, s)}{2}$ in $\binom{n}{2}$ variables and it's gradient can be readily computed.
+
+\begin{itemize}
+  \item What is known about the optima of relaxed discrete problems? --> connection to probabilistic method etc.
+  \item mention multicolor case -> cartesian product of probability simplices instead of hypercube
+  \item 
+
+\end{itemize}
+
+\section{Batched / stochastic optimization}
+
+Cliques get large quickly. -> evaluating full objective quickly becomes slow / expensive. --> genius idea: batch! over the cliques haha. but there are so many design choices. Concretely:
+
+\begin{itemize}
+  \item Do we think in ``epochs''? i.e. do we iterate through all cliques before starting afresh?
+  \item How do we handle off diagonal ramsey numbers? ($r > s \Rightarrow \binom{n}{r} > \binom{n}{s}$)
+\end{itemize}
+
+
+The following text is not nice (something I wrote a long time ago). has to be fundamentally rewritten.
+
+When the number of cliques is small enough, we evaluate the objective exactly by summing over all cliques of the required size. However, for the Ramsey instances of interest the number of cliques
+\[
+|\mathcal{C}_{r_k}| = \binom{n}{r_k}
+\]
+grows very quickly, so evaluating the full objective at every optimization step becomes prohibitively expensive in both time and memory. In that regime we replace the exact objective by a stochastic mini-batch estimate.
+For each color $k \in \{1,\dots,c\}$, define the contribution of one clique $C \in \mathcal{C}_{r_k}$ by
+\[
+\ell_k(C;p) = \prod_{i,j \in C:\, i<j} (p_{ij})_k.
+\]
+Then the exact average objective can be written as
+\[
+\mathcal{L}(p)
+=
+\sum_{k=1}^c
+\frac{1}{|\mathcal{C}_{r_k}|}
+\sum_{C \in \mathcal{C}_{r_k}}
+\ell_k(C;p).
+\]
+\paragraph{Mini-batch objective.}
+If \texttt{clique\_batch\_size} $= B_k < |\mathcal{C}_{r_k}|$, we sample a subset
+\[
+S_k \subseteq \mathcal{C}_{r_k},
+\qquad |S_k| = B_k,
+\]
+uniformly without replacement, and use the estimator
+\[
+\widehat{\mathcal{L}}(p)
+=
+\sum_{k=1}^c
+\frac{1}{B_k}
+\sum_{C \in S_k}
+\ell_k(C;p).
+\]
+This is an unbiased estimator of the average objective, i.e.
+\[
+\mathbb{E}\big[\widehat{\mathcal{L}}(p)\big] = \mathcal{L}(p).
+\]
+Hence, the gradient computed from the batch is also an unbiased estimate of the full gradient, so the optimization procedure minimizes the exact objective in expectation. If one instead wants to approximate the \emph{sum} over all cliques rather than the average, one can equivalently use the rescaled estimator
+\[
+\widetilde{\mathcal{L}}(p)
+=
+\sum_{k=1}^c
+\frac{|\mathcal{C}_{r_k}|}{B_k}
+\sum_{C \in S_k}
+\ell_k(C;p).
+\]
+\paragraph{Current paired batching scheme.}
+In the two-color off-diagonal setting we use an epoch-based batching strategy anchored on the larger clique size. Let
+\[
+R = \max(r,s), \qquad r = \min(r,s).
+\]
+At the beginning of each epoch we take all $R$-cliques, apply a random permutation, and split them into batches
+\[
+A_1,\dots,A_T,
+\qquad |A_t| \leq B.
+\]
+For a given anchor batch $A_t$, we evaluate the large-clique term directly on those cliques. For the smaller clique size, we do not sample independently; instead, we include all smaller subcliques induced by the anchor batch:
+\[
+I_t
+=
+\biguplus_{C \in A_t}
+\bigl\{D \subseteq C : |D| = r \bigr\},
+\]
+where $\biguplus$ denotes multiset union (just meaning that we often have the same smaller clique multiple times in one big batch). In other words, every sampled $R$-clique contributes all of its $\binom{R}{r}$ contained $r$-cliques.
+The resulting stochastic objective for one optimizer step is
+\[
+\widehat{\mathcal{L}}_t(p)
+=
+\frac{1}{|A_t|}
+\sum_{C \in A_t} \ell_R(C;p)
+\;+\;
+w\,
+\frac{1}{|I_t|}
+\sum_{D \in I_t} \ell_r(D;p),
+\]
+where $w=1$ by default. Optionally, we set
+\[
+w = \binom{R}{r}^{-1}
+\]
+to reweight the secondary term by the number of smaller subcliques contributed by one anchor clique.
+\paragraph{Interpretation.}
+Therefore, when \texttt{clique\_batch\_size} is smaller than the total number of cliques, the objective used by the optimizer is not the full deterministic objective but a stochastic approximation of it. This keeps the computation tractable while preserving the correct target objective in expectation. Over one full epoch every anchor clique of the larger size is visited exactly once, and the stochasticity comes only from the random permutation into batches and, in the off-diagonal case, from the induced multiplicities of smaller subcliques.
+
+Earlier approaches included:
+\begin{itemize}
+    \item Just sampling randomly at each step (not thinking in epochs).
+    \item Computing all cliques (in all colors) at the beginning of each epoch and building bathes of equal size in each color. Note that there are much more $s$-cliques than $r-$cliques if $s > r$. So when iterating through these shuffled batches we encounter $s$-cliques much more often. Just doing a gradient step after each batch makes no sense as it just pushes all edges to the color no present in that batch. One weird solution that worked okay was to randomly select batches in one epoch but accumulating gradients until we have seen all colors.
+    \item Another "obvious" solution is to build \emph{batches of different size} in each color. This has to be expanded mathematically.
+\end{itemize}
+
+
+\section{The log trick}
+
+The objective \cref{eq:opt-problem} can be interpreted as an expected value. (the object we learn is now a probability distribution over the edges).
+
+$ \prod_{i, j \in C: i < j} e_{ij} $ is the probability that the clique $C$ is colored $1$. More clearly, the $e_{ij}$ are Bernoulli variables and their expected value is $e_{ij}$. Since we interpret each edge by being colored independently, by linearity of the expectation the above expression can be pulled out and also completely out of the product-sum structure. <--- this is so bad, has to be motivated much better
+
+While the naive formulation of the objective function aims to minimize the expected number of monochromatic cliques, optimizing this linear expectation directly is numerically unsuited for gradient-based methods. Specifically, an objective formulated as the raw sum of products of edge probabilities,
+\begin{equation}\label{eq:linear_expectation}
+    M_f = \sum_{C \in \mathcal{C}_r} \prod_{e \in C} p_{e} + \sum_{C \in \mathcal{C}_s} \prod_{e \in C} (1 - p_{e}),
+\end{equation}
+suffers from severe vanishing gradients. Because $p_e \in (0, 1)$, the product over the edges of a subgraph decays exponentially. Consequently, a subgraph that is structurally close to forming a monochromatic clique provides only a negligible gradient signal. The optimizer is thereby mathematically incentivized to ignore isolated structural violations in favor of marginal, global reductions across the graph.
+
+To resolve this, we reformulate the objective using a logarithmic barrier function, shifting the optimization from minimizing an expected count to maximizing the likelihood of avoiding all forbidden configurations simultaneously. The modified loss function is defined as:
+\begin{equation}\label{eq:log_barrier}
+    L = -\sum_{C \in \mathcal{C}_r} \log\left(1 - \prod_{e \in C} p_{e}\right) - \sum_{C \in \mathcal{C}_s} \log\left(1 - \prod_{e \in C} (1 - p_{e})\right).
+\end{equation}
+By applying the negative logarithm inside the summation, every potential clique acts as a strict, individual constraint. As the probability of any specific subgraph becoming monochromatic approaches $1$, its corresponding penalty diverges to infinity. This topological shift ensures that the gradient scales inversely with the distance to a constraint violation, forcing the optimizer to aggressively penalize subgraphs on the verge of becoming cliques. This objective acts as a differentiable analogue to the Lov\'asz Local Lemma and aligns with the optimization topologies used in the Cross-Entropy Method for extremal combinatorics \cite{wagner2021constructions, Rubinstein2004}.
+
+\section{Frank Wolfe}
+
+The Frank Wolfe algorithm \cite{frank1956algorithm,braun2022conditional} is a projection-free first order method.
+
+
+
+\section{Citations, figures, tables, references}
+\label{others}
+
+
+
+
+
+
+
+\subsection{Figures}
+
+
+\begin{figure}
+  \centering
+  \fbox{\rule[-.5cm]{0cm}{4cm} \rule[-.5cm]{4cm}{0cm}}
+  \caption{Sample figure caption. Explain what the figure shows and add a key take-away message to the caption.}
+\end{figure}
+
+
+
+\subsection{Tables}
+
+
+
+
+
+\begin{table}
+  \caption{Sample table caption. Explain what the table shows and add a key take-away message to the caption.}
+  \label{sample-table}
+  \centering
+  \begin{tabular}{lll}
+    \toprule
+    \multicolumn{2}{c}{Part}                   \\
+    \cmidrule(r){1-2}
+    Name     & Description     & Size ($\mu$m) \\
+    \midrule
+    Dendrite & Input terminal  & $\approx$100     \\
+    Axon     & Output terminal & $\approx$10      \\
+    Soma     & Cell body       & up to $10^6$  \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+
+
+
+
+
+
+
+
+\begin{ack}
+Use unnumbered first level headings for the acknowledgments. All acknowledgments
+go at the end of the paper before the list of references. Moreover, you are required to declare
+funding (financial activities supporting the submitted work) and competing interests (related financial activities outside the submitted work).
+More information about this disclosure can be found at: \url{https://neurips.cc/Conferences/2026/PaperInformation/FundingDisclosure}.
+
+
+Do {\bf not} include this section in the anonymized submission, only in the final paper. You can use the \texttt{ack} environment provided in the style file to automatically hide this section in the anonymized submission.
+\end{ack}
+
+\newpage
+
+\bibliographystyle{abbrv}
+\bibliography{bibliography}
+
+\newpage
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\appendix
+
+\section{Technical appendices and supplementary material}
+Technical appendices with additional results, figures, graphs, and proofs may be submitted with the paper submission before the full submission deadline (see above). You can upload a ZIP file for videos or code, but do not upload a separate PDF file for the appendix. There is no page limit for the technical appendices. 
+
+Note: Think of the appendix as ``optional reading'' for reviewers. The paper must be able to stand alone without the appendix; for example, adding critical experiments that support the main claims to an appendix is inappropriate. 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newpage
+\input{checklist.tex}
+
+
+\end{document}
