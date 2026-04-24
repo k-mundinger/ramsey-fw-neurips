@@ -222,6 +222,21 @@ Because the feasible region is a hypercube, this oracle has a simple closed form
         1, & \text{otherwise.}
     \end{cases}
 \end{equation}
+
+
+In the actual implementation, even the two-color case is handled in a multicolor parameterization: for each edge $\{i,j\}$ we optimize a probability vector $x_{ij} \in \Delta^{c-1}$ over colors rather than a single scalar in $[0,1]$. The Frank-Wolfe linear minimization oracle remains equally simple. Writing $g_{ij} \in \mathbb{R}^c$ for the gradient with respect to the color probabilities on edge $\{i,j\}$, the oracle solves
+\[
+(s_t)_{ij} \in \arg\min_{z \in \Delta^{c-1}} \langle g_{ij}, z \rangle,
+\]
+and therefore places all mass on a minimizing color:
+\[
+(s_t)_{ij} = e_{k^*},
+\qquad
+k^* \in \arg\min_{k \in \{1,\dots,c\}} (g_{ij})_k,
+\]
+where $e_{k^*}$ denotes the corresponding standard basis vector. Thus, exactly as in the hypercube formulation, the oracle returns an extreme point, now interpreted as choosing one color for each edge.
+\konrad{One could write it like this from the beginning but I feel that it unnecessarily complicates the presentation. But probably also makes it seem fancier for non-mathy-reviewers.}
+
 The iterate is then updated by
 \begin{equation}
     x_{t+1} = (1-\gamma_t)x_t + \gamma_t s_t,
