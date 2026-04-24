@@ -58,9 +58,12 @@
 \usepackage{microtype}      % microtypography
 \usepackage{xcolor}         % colors
 \usepackage{cleveref}
+\usepackage{todonotes}
+
+\newcommand{\konrad}[1]{\todo[inline,color=green!40]{Konrad: #1}}
 
 % Note. For the workshop paper template, both \title{} and \workshoptitle{} are required, with the former indicating the paper title shown in the title and the latter indicating the workshop title displayed in the footnote. 
-\title{Rediscovering Ramsey Numbers via Frank Wolfe}
+\title{(Re-)discovering Ramsey Numbers via Frank Wolfe}
 
 
 % The \author macro works with any number of authors. There are two commands
@@ -111,255 +114,225 @@
 
 
 \begin{abstract}
-  Certifying lower bounds for Ramsey numbers is a challenging problem in combinatorial optimization. We present a Frank Wolfe type algorithm operating on a relaxed version (by considering stochastic graphs) which turned out to be surprisingly effective on diagonal and close to diagonal cases.
+  Certifying lower bounds for Ramsey numbers is a challenging discrete optimization problem over edge colorings of complete graphs. We formulate Ramsey search as continuous optimization over probabilistic edge colorings, replace the raw expected monochromatic-clique count by a log-barrier surrogate that emphasizes near-violations, and optimize the resulting objective with a Frank-Wolfe type method and stochastic clique batching. The resulting pipeline is simple, projection-free, and effective on diagonal and near-diagonal instances. In particular, it repeatedly recovers $42$-vertex witnesses for the lower bound on $R(5,5)$ and produces a large collection of feasible colorings in that regime. These results suggest that first-order continuous optimization can be competitive for certified combinatorial search problems.
 \end{abstract}
 
 
 
 \section{Introduction}
 
-Ramsey theory studies the inevitable emergence of order within large, seemingly unstructured systems. A foundational problem in the field is finding lower bounds for Ramsey numbers, which can be naturally cast as a discrete optimization task on graphs. Let $G_n = (V, E)$ denote the complete graph on $n$ vertices, where every pair of distinct vertices is connected by an edge. We consider a binary assignment---or \emph{coloring}---of these edges, represented by a mapping $f: E \to \{0, 1\}$. 
+Ramsey theory studies the emergence of unavoidable structure in sufficiently large graphs. A central problem is to certify lower bounds for Ramsey numbers by exhibiting edge colorings of a complete graph that avoid forbidden monochromatic cliques. This viewpoint leads naturally to a discrete optimization problem over graph colorings and provides a clean testbed for continuous methods on combinatorial objects.
 
-A central object of interest is a \emph{clique}, which is simply a fully connected subgraph. In the context of our binary edge assignment, the Ramsey number $R(r, s)$ is defined as the minimum number of vertices $n$ such that every edge coloring of $G_n$ is guaranteed to contain either a clique of size $r$ where all edges are colored $1$, or a clique of size $s$ where all edges are colored $0$. Proving a lower bound $R(r, s) > n$ therefore requires finding a \emph{counterexample}: a coloring of $G_n$ that avoids both of these monochromatic structures.
+Let $G_n=(V,E)$ be the complete graph on $n$ vertices, and write $m=\binom{n}{2}$ for the number of edges. A binary coloring is represented by a vector $x=(x_{ij})_{1 \leq i < j \leq n} \in \{0,1\}^m$, where $x_{ij}=1$ denotes that edge $(i,j)$ receives the first color and $x_{ij}=0$ the second. For integers $r,s \geq 2$, the Ramsey number $R(r,s)$ is the smallest $n$ such that every coloring of $G_n$ contains either a monochromatic $K_r$ in color $1$ or a monochromatic $K_s$ in color $0$. Consequently, a certificate for the lower bound $R(r,s)>n$ is exactly a coloring of $G_n$ that avoids both structures.
 
-This search can be formulated computationally as a discrete optimization problem, where the goal is to find a coloring that minimizes the total number of such "violating" cliques. By associating each edge $(i, j)$ with its binary color value $e_{ij} \in \{0, 1\}$, the total number of cliques of size $r$ in color $1$ plus the number of cliques of size $s$ in color $0$ can be expressed algebraically as:
+This search can be written as the minimization of the number of forbidden monochromatic cliques. Let $\mathcal{C}_k$ denote the set of $k$-vertex subsets of $V$. Then the objective
+
+\konrad{Not super happy with the notation, one could also be more explicit that one just optimizes over $\{0,1\}^{\binom{n}{2}}$.}
 
 \begin{equation}\label{eq:no-monochromatic-cliques}
-    M_f = \sum_{C \in \mathcal{C}_r} \prod_{i, j \in C: i < j} e_{ij} \quad + \quad \sum_{C \in \mathcal{C}_s} \prod_{i, j \in C: i < j} \left(1 - e_{ij}\right),
+    M(x) = \sum_{C \in \mathcal{C}_r} \prod_{\{i,j\} \subseteq C} x_{ij}
+    \quad + \quad
+    \sum_{C \in \mathcal{C}_s} \prod_{\{i,j\} \subseteq C} \left(1 - x_{ij}\right)
 \end{equation}
 
-where $\mathcal{C}_r$ and $\mathcal{C}_s$ denote the sets of all vertex subsets of sizes $r$ and $s$, respectively. We have hence already derived the optimization problem which one can try to solve to obtain a lower bound for $R(r, s)$:
+counts monochromatic $K_r$ subgraphs in color $1$ together with monochromatic $K_s$ subgraphs in color $0$. A zero-valued solution therefore gives a valid witness for $R(r,s)>n$. The corresponding discrete optimization problem is
 
 \begin{equation}\label{eq:opt-problem}
-    \min_{f: E \to \{0, 1\}} M_f
+    \min_{x \in \{0,1\}^m} M(x).
 \end{equation}
 
-\cite{morris2026recentresultsramseytheory} provides a recent overview of the state of the art in Ramsey theory.
+Recent work has highlighted the value of computational search for extremal combinatorics, ranging from classical heuristic search to neural and LLM-assisted pipelines \cite{Rubinstein2004,wagner2021constructions,nagda2026reinforcedgenerationcombinatorialstructures}. In contrast to highly specialized search procedures, we study a single continuous optimization pipeline built directly from the clique-counting objective. Ramsey search is an attractive benchmark for this purpose: the relaxation is simple, the objective is highly nonconvex and high-order, and success is measured by explicit, verifiable witnesses. We refer to \cite{morris2026recentresultsramseytheory} for a recent overview of Ramsey-theoretic background.
 
-Further plan:
+\paragraph{Contributions.}
 \begin{itemize}
-  \item very little ramsey numbers are actually known. already for R(5, 5) we only have bounds
-  \item there are n choose 2 edges so 2 ** n choose 2 possible colorings -> large search space
-  \item the number of cliques also grows nasty with r and s (and obviously n) -> hard to optimize
-  \item typical approaches include SA, tabu search -> brief history of the quest for ramsey numbers, erdos quote etc.
-  \item many examples certifying lower bounds are highly structured, i.e. circulants, Payley graphs, etc. Recently, \cite{nagda2026reinforcedgenerationcombinatorialstructures} made use of these structures when finding new lower bounds very far from the diagonal, where evaluating the whole objective becomes prohibitively expensive.
-
+  \item We formulate Ramsey search as continuous optimization over probabilistic edge colorings of complete graphs.
+  \item We introduce a log-barrier surrogate that preserves the clique-wise structure of the problem while providing a stronger optimization signal than the raw expected clique count.
+  \item We apply a Frank-Wolfe type method to the relaxed problem, yielding projection-free updates that naturally move iterates toward discrete colorings \cite{frank1956algorithm,braun2022conditional}.
+  \item We develop stochastic clique batching schemes that make optimization feasible when exact evaluation over all cliques is too expensive.
+  \item Empirically, the method recovers strong witnesses on diagonal and near-diagonal instances, including repeated recovery of $42$-vertex constructions for the lower bound on $R(5,5)$.
 \end{itemize}
 
-\section{Time to Relax}
 
-While most traditional approches focus on exploring the large, yet finite discrete search space, the objective allows for a straightforward relaxation:
+\section{Continuous Relaxation}
+
+The discrete feasible set in \cref{eq:opt-problem} admits an immediate continuous relaxation:
 
 \begin{equation}\label{eq:relaxed-problem}
-    \min_{f: E \to [0, 1]} M_f,
+    \min_{x \in [0,1]^m} M(x).
 \end{equation}
 
-where $f$ is now a \emph{probabilistic} coloring of the edges.
+Under this relaxation, each variable $x_{ij}$ can be interpreted as the probability that edge $(i,j)$ receives color $1$ under an independent Bernoulli coloring model. The objective $M(x)$ is then the expected number of forbidden monochromatic cliques, since each product term is exactly the probability that a given clique is monochromatic in one of the two colors. This probabilistic view preserves a direct connection to the discrete search problem while exposing a continuous domain on which first-order methods can operate.
 
-
-Another insightful way to write the problem down is:
+Equivalently, the relaxed problem can be written as
 
 \begin{align}\label{eq:constrained-problem}
-    \min &\sum_{C \in \mathcal{C}_r} \prod_{i, j \in C: i < j} e_{ij} \quad + \quad \sum_{C \in \mathcal{C}_s} \prod_{i, j \in C: i < j} \left(1 - e_{ij}\right), \\
-    \text{s. t.} &e \in [0, 1]^{\binom{n}{2}}.
+    \min_{x} \quad &\sum_{C \in \mathcal{C}_r} \prod_{\{i,j\} \subseteq C} x_{ij}
+    \quad + \quad
+    \sum_{C \in \mathcal{C}_s} \prod_{\{i,j\} \subseteq C} \left(1 - x_{ij}\right), \\
+    \text{s.t.} \quad &x \in [0,1]^m.
 \end{align}
 
-Note that this is a polynomial of degree $\binom{\max(r, s)}{2}$ in $\binom{n}{2}$ variables and it's gradient can be readily computed.
+The objective is a polynomial of degree $\binom{\max(r,s)}{2}$ in $m=\binom{n}{2}$ variables, so gradients can be computed explicitly whenever clique enumeration is feasible. Although any final certificate must still be discrete, the continuous relaxation is useful because it exposes informative descent directions and allows the optimizer to exploit partial progress before a valid witness has fully polarized.
 
-\begin{itemize}
-  \item What is known about the optima of relaxed discrete problems? --> connection to probabilistic method etc.
-  \item mention multicolor case -> cartesian product of probability simplices instead of hypercube
-  \item 
+Ultimately, lower bounds are certified only after converting a candidate point to a binary coloring and verifying directly that no forbidden monochromatic cliques remain.
 
-\end{itemize}
+In our implementation, this extraction is performed deterministically by the method of conditional expectation rather than by thresholding or randomized rounding. Starting from a relaxed iterate $x$, we process the edges one at a time. For the current undecided edge $e$, we evaluate the objective conditioned on fixing $e=0$ and on fixing $e=1$, while keeping the remaining undecided edges at their current fractional values. We then permanently assign the value that yields the smaller conditional objective. Repeating this over all edges produces a binary coloring whose final number of monochromatic clique violations is no larger than the conditional expectation encoded by the relaxed point. The resulting coloring is then verified directly by exhaustive clique checking (or simply running a max clique algorithm); if no forbidden monochromatic $K_r$ or $K_s$ is found, it certifies the claimed Ramsey lower bound.
 
-\section{Batched / stochastic optimization}
+\konrad{mention multicolor briefly? including experiments could be a lot.}
 
-Cliques get large quickly. -> evaluating full objective quickly becomes slow / expensive. --> genius idea: batch! over the cliques haha. but there are so many design choices. Concretely:
+\section{Objective Design}
 
-\begin{itemize}
-  \item Do we think in ``epochs''? i.e. do we iterate through all cliques before starting afresh?
-  \item How do we handle off diagonal ramsey numbers? ($r > s \Rightarrow \binom{n}{r} > \binom{n}{s}$)
-\end{itemize}
+The relaxed objective in \cref{eq:relaxed-problem} is conceptually natural, but in practice it provides a weak optimization signal. Because each clique contribution is a high-order product of numbers in $[0,1]$, the raw objective often yields very small gradients even when a candidate solution is close to creating a forbidden monochromatic clique. As a result, a first-order method can spend many iterations reducing already-safe regions of the graph while paying insufficient attention to the most dangerous near-violations.
 
+To make this issue explicit, consider the raw expected-count objective
+\begin{equation}\label{eq:linear_expectation}
+    M(x)
+    =
+    \sum_{C \in \mathcal{C}_r} \prod_{\{i,j\} \subseteq C} x_{ij}
+    +
+    \sum_{C \in \mathcal{C}_s} \prod_{\{i,j\} \subseteq C} (1 - x_{ij}).
+\end{equation}
+When a clique differs from a monochromatic one by only a small number of edges, the corresponding product term can still be numerically tiny, especially for larger clique sizes. The optimizer is then encouraged to distribute mass diffusely rather than to eliminate the specific substructures most likely to invalidate a witness.
 
-The following text is not nice (something I wrote a long time ago). has to be fundamentally rewritten.
+We therefore optimize a barrier-style surrogate that penalizes each candidate forbidden clique individually:
+\begin{equation}\label{eq:log_barrier}
+    L(x)
+    =
+    -\sum_{C \in \mathcal{C}_r}
+    \log\left(1 - \prod_{\{i,j\} \subseteq C} x_{ij}\right)
+    -
+    \sum_{C \in \mathcal{C}_s}
+    \log\left(1 - \prod_{\{i,j\} \subseteq C} (1 - x_{ij})\right).
+\end{equation}
+The logarithmic barrier changes the geometry of the problem in a useful way. Each clique behaves like an individual soft constraint, and the penalty for a nearly monochromatic clique grows rapidly as its monochromatic probability approaches $1$. Consequently, gradients concentrate on the substructures most likely to violate the target Ramsey condition.
 
-When the number of cliques is small enough, we evaluate the objective exactly by summing over all cliques of the required size. However, for the Ramsey instances of interest the number of cliques
+\konrad{Recent experiments suggest that with correct other hyperparameters the vanilla prob loss isn't significantly worse. also finds some certificates for $R(5, 5)$ on 42 nodes.}
+
+\section{Frank-Wolfe Optimization}
+
+We optimize the relaxed objective over the hypercube $[0,1]^m$ with a Frank-Wolfe type method \cite{frank1956algorithm,braun2022conditional}. At iteration $t$, given a current iterate $x_t$, the linear minimization subproblem is
+\begin{equation}
+    s_t \in \arg\min_{s \in [0,1]^m} \langle \nabla L(x_t), s \rangle.
+\end{equation}
+Because the feasible region is a hypercube, this oracle has a simple closed form:
+\begin{equation}
+    (s_t)_{ij} =
+    \begin{cases}
+        0, & \text{if } \frac{\partial L(x_t)}{\partial x_{ij}} > 0, \\
+        1, & \text{otherwise.}
+    \end{cases}
+\end{equation}
+The iterate is then updated by
+\begin{equation}
+    x_{t+1} = (1-\gamma_t)x_t + \gamma_t s_t,
+\end{equation}
+where $\gamma_t \in [0,1]$ is a step size.
+
+This choice is attractive for two reasons. First, each update is projection-free and inexpensive even in very high dimension. Second, the linear minimization oracle always returns a vertex of the hypercube, so the iterates are repeatedly pulled toward discrete colorings rather than remaining in the interior. In our setting this bias toward extreme points is desirable because the final goal is a binary witness, not merely a low-value continuous relaxation.
+
+\konrad{Specify the exact Frank-Wolfe variant and step-size rule used in experiments: vanilla FW, away-steps, pairwise FW, fixed schedule, line search, or something custom.}
+
+\konrad{Comparison to projected GD?}
+
+\section{Scalable Batched Optimization}
+
+The main computational bottleneck is clique enumeration. Even for moderate $n$, the number of $k$-cliques,
 \[
-|\mathcal{C}_{r_k}| = \binom{n}{r_k}
+|\mathcal{C}_k| = \binom{n}{k},
 \]
-grows very quickly, so evaluating the full objective at every optimization step becomes prohibitively expensive in both time and memory. In that regime we replace the exact objective by a stochastic mini-batch estimate.
-For each color $k \in \{1,\dots,c\}$, define the contribution of one clique $C \in \mathcal{C}_{r_k}$ by
+is far too large for exact evaluation at every Frank-Wolfe step. Since our objectives are sums of independent clique-wise penalties, the natural approximation is to replace the full sum by a mini-batch average.
+
+Let $\ell_r(C;x)$ and $\ell_s(C;x)$ denote the contribution of clique $C$ to the two color classes. For the barrier surrogate in \cref{eq:log_barrier},
 \[
-\ell_k(C;p) = \prod_{i,j \in C:\, i<j} (p_{ij})_k.
+\ell_r(C;x) = -\log\left(1 - \prod_{\{i,j\} \subseteq C} x_{ij}\right),
+\qquad
+\ell_s(C;x) = -\log\left(1 - \prod_{\{i,j\} \subseteq C} (1-x_{ij})\right).
 \]
-Then the exact average objective can be written as
+For batching, it is convenient to work with the clique-averaged objective
 \[
-\mathcal{L}(p)
+\bar{L}(x)
 =
-\sum_{k=1}^c
-\frac{1}{|\mathcal{C}_{r_k}|}
-\sum_{C \in \mathcal{C}_{r_k}}
-\ell_k(C;p).
+\frac{1}{|\mathcal{C}_r|}
+\sum_{C \in \mathcal{C}_r} \ell_r(C;x)
++
+\frac{1}{|\mathcal{C}_s|}
+\sum_{C \in \mathcal{C}_s} \ell_s(C;x),
 \]
-\paragraph{Mini-batch objective.}
-If \texttt{clique\_batch\_size} $= B_k < |\mathcal{C}_{r_k}|$, we sample a subset
+whose gradient has the same form as the original objective up to a constant rescaling.
+
+The diagonal case $r=s$ is straightforward. Both color terms are indexed by the same family of $r$-cliques, so we sample a single batch $S \subseteq \mathcal{C}_r$ and evaluate both colors on that same set:
 \[
-S_k \subseteq \mathcal{C}_{r_k},
-\qquad |S_k| = B_k,
-\]
-uniformly without replacement, and use the estimator
-\[
-\widehat{\mathcal{L}}(p)
+\widehat{L}_{\mathrm{diag}}(x)
 =
-\sum_{k=1}^c
-\frac{1}{B_k}
-\sum_{C \in S_k}
-\ell_k(C;p).
+\frac{1}{|S|}
+\sum_{C \in S} \bigl(\ell_r(C;x) + \ell_s(C;x)\bigr).
 \]
-This is an unbiased estimator of the average objective, i.e.
+This is an unbiased estimator of $\bar{L}(x)$. Using the same batch for both colors is also the most intuitive choice: each stochastic update compares the red and blue penalties on exactly the same local vertex pattern, rather than adding variance from two unrelated samples.
+
+The off-diagonal case $r \neq s$ requires one more design choice because the two color terms live on different clique families. Here the main question is not whether to batch, but how to organize the two batches across an epoch.
+
+Let
 \[
-\mathbb{E}\big[\widehat{\mathcal{L}}(p)\big] = \mathcal{L}(p).
+R = \max(r,s), \qquad q = \min(r,s),
 \]
-Hence, the gradient computed from the batch is also an unbiased estimate of the full gradient, so the optimization procedure minimizes the exact objective in expectation. If one instead wants to approximate the \emph{sum} over all cliques rather than the average, one can equivalently use the rescaled estimator
+and let $\ell_R$ and $\ell_q$ denote the clique penalties for the corresponding two colors. We choose a batch size $B_R$ for the larger clique family $\mathcal{C}_R$, and define
 \[
-\widetilde{\mathcal{L}}(p)
-=
-\sum_{k=1}^c
-\frac{|\mathcal{C}_{r_k}|}{B_k}
-\sum_{C \in S_k}
-\ell_k(C;p).
+T = \left\lceil \frac{|\mathcal{C}_R|}{B_R} \right\rceil
 \]
-\paragraph{Current paired batching scheme.}
-In the two-color off-diagonal setting we use an epoch-based batching strategy anchored on the larger clique size. Let
-\[
-R = \max(r,s), \qquad r = \min(r,s).
-\]
-At the beginning of each epoch we take all $R$-cliques, apply a random permutation, and split them into batches
+to be the number of optimization steps in one epoch. At the start of the epoch, we randomly permute all $R$-cliques and partition them into batches
 \[
 A_1,\dots,A_T,
-\qquad |A_t| \leq B.
+\qquad |A_t| \leq B_R.
 \]
-For a given anchor batch $A_t$, we evaluate the large-clique term directly on those cliques. For the smaller clique size, we do not sample independently; instead, we include all smaller subcliques induced by the anchor batch:
+We then independently permute the smaller clique family $\mathcal{C}_q$ and partition it into the same number $T$ of batches
 \[
-I_t
-=
-\biguplus_{C \in A_t}
-\bigl\{D \subseteq C : |D| = r \bigr\},
+B_1,\dots,B_T,
+\qquad |B_t| \approx \frac{|\mathcal{C}_q|}{T}.
 \]
-where $\biguplus$ denotes multiset union (just meaning that we often have the same smaller clique multiple times in one big batch). In other words, every sampled $R$-clique contributes all of its $\binom{R}{r}$ contained $r$-cliques.
-The resulting stochastic objective for one optimizer step is
+Equivalently, the smaller-clique batch size is chosen so that both colors finish one full pass through their respective clique families at the same time.
+
+At optimization step $t$, we evaluate one batch from each color and then apply a single update:
 \[
-\widehat{\mathcal{L}}_t(p)
+\widehat{\mathcal{L}}_t(x)
 =
 \frac{1}{|A_t|}
-\sum_{C \in A_t} \ell_R(C;p)
+\sum_{C \in A_t} \ell_R(C;x)
 \;+\;
-w\,
-\frac{1}{|I_t|}
-\sum_{D \in I_t} \ell_r(D;p),
+\frac{1}{|B_t|}
+\sum_{D \in B_t} \ell_q(D;x).
 \]
-where $w=1$ by default. Optionally, we set
-\[
-w = \binom{R}{r}^{-1}
-\]
-to reweight the secondary term by the number of smaller subcliques contributed by one anchor clique.
-\paragraph{Interpretation.}
-Therefore, when \texttt{clique\_batch\_size} is smaller than the total number of cliques, the objective used by the optimizer is not the full deterministic objective but a stochastic approximation of it. This keeps the computation tractable while preserving the correct target objective in expectation. Over one full epoch every anchor clique of the larger size is visited exactly once, and the stochasticity comes only from the random permutation into batches and, in the off-diagonal case, from the induced multiplicities of smaller subcliques.
+This is what ``independent batching'' means in our epoch-based implementation. The two color classes are sampled independently, but they are synchronized at the level of epochs: each step uses the $t$-th batch from the large-clique pass and the $t$-th batch from the small-clique pass, and after $T$ steps both passes are complete.
 
-Earlier approaches included:
+This viewpoint is often clearer than thinking of each update as drawing two fresh random mini-batches from scratch. Over one epoch, every clique in each family is visited exactly once, up to the usual rounding in the last batch, and reshuffling happens only when the next epoch begins. The resulting estimator is still unbiased for the same clique-averaged objective, while fitting naturally with the ``one pass through all cliques per epoch'' interpretation used in the implementation.
+
+\konrad{Still unclear which is the "better" option oir if I have missed one which is even better. "anchor" strategy is very expensive when $|s - r| \geq 2$.}
+
+\section{Results}
+
+Cases that work so far (i.e., where we match the known lower bound (or exact value)):
+
 \begin{itemize}
-    \item Just sampling randomly at each step (not thinking in epochs).
-    \item Computing all cliques (in all colors) at the beginning of each epoch and building bathes of equal size in each color. Note that there are much more $s$-cliques than $r-$cliques if $s > r$. So when iterating through these shuffled batches we encounter $s$-cliques much more often. Just doing a gradient step after each batch makes no sense as it just pushes all edges to the color no present in that batch. One weird solution that worked okay was to randomly select batches in one epoch but accumulating gradients until we have seen all colors.
-    \item Another "obvious" solution is to build \emph{batches of different size} in each color. This has to be expanded mathematically.
+  \item $R(3,k)$ for $k\leq 8$: easy. $R(3, 9)$ should also be doable.
+  \item $R(4,4)$ and $R(4,5)$: easy as well.
+  \item $R(5,5)$: found $\approx 100$ distinct $42$-colorings, hopes are that there will be more (all 328 seems a bit unrealistic).
 \end{itemize}
 
+What doesn't work (yet):
 
-\section{The log trick}
+\begin{itemize}
+    \item $R(4, 6)$: more difficult than expected, still haven't found one, current "record" are 5 monochromatic cliques on 35 nodes.
+    \item $R(4, 7)$: started some runs but here the runs are quite expensive already.
+    \item $R(5, 6)$: same.
+\end{itemize}
 
-The objective \cref{eq:opt-problem} can be interpreted as an expected value. (the object we learn is now a probability distribution over the edges).
-
-$ \prod_{i, j \in C: i < j} e_{ij} $ is the probability that the clique $C$ is colored $1$. More clearly, the $e_{ij}$ are Bernoulli variables and their expected value is $e_{ij}$. Since we interpret each edge by being colored independently, by linearity of the expectation the above expression can be pulled out and also completely out of the product-sum structure. <--- this is so bad, has to be motivated much better
-
-While the naive formulation of the objective function aims to minimize the expected number of monochromatic cliques, optimizing this linear expectation directly is numerically unsuited for gradient-based methods. Specifically, an objective formulated as the raw sum of products of edge probabilities,
-\begin{equation}\label{eq:linear_expectation}
-    M_f = \sum_{C \in \mathcal{C}_r} \prod_{e \in C} p_{e} + \sum_{C \in \mathcal{C}_s} \prod_{e \in C} (1 - p_{e}),
-\end{equation}
-suffers from severe vanishing gradients. Because $p_e \in (0, 1)$, the product over the edges of a subgraph decays exponentially. Consequently, a subgraph that is structurally close to forming a monochromatic clique provides only a negligible gradient signal. The optimizer is thereby mathematically incentivized to ignore isolated structural violations in favor of marginal, global reductions across the graph.
-
-To resolve this, we reformulate the objective using a logarithmic barrier function, shifting the optimization from minimizing an expected count to maximizing the likelihood of avoiding all forbidden configurations simultaneously. The modified loss function is defined as:
-\begin{equation}\label{eq:log_barrier}
-    L = -\sum_{C \in \mathcal{C}_r} \log\left(1 - \prod_{e \in C} p_{e}\right) - \sum_{C \in \mathcal{C}_s} \log\left(1 - \prod_{e \in C} (1 - p_{e})\right).
-\end{equation}
-By applying the negative logarithm inside the summation, every potential clique acts as a strict, individual constraint. As the probability of any specific subgraph becoming monochromatic approaches $1$, its corresponding penalty diverges to infinity. This topological shift ensures that the gradient scales inversely with the distance to a constraint violation, forcing the optimizer to aggressively penalize subgraphs on the verge of becoming cliques. This objective acts as a differentiable analogue to the Lov\'asz Local Lemma and aligns with the optimization topologies used in the Cross-Entropy Method for extremal combinatorics \cite{wagner2021constructions, Rubinstein2004}.
-
-\section{Frank Wolfe}
-
-The Frank Wolfe algorithm \cite{frank1956algorithm,braun2022conditional} is a projection-free first order method.
-
-
-
-\section{Citations, figures, tables, references}
-\label{others}
+We evaluate the proposed method on diagonal and near-diagonal Ramsey instances. The headline result is the repeated recovery of feasible $42$-vertex colorings for the lower bound on $R(5,5)$, matching the strongest known construction at that size. Beyond a single witness, the method produces a large collection of successful solutions, which indicates that the optimization landscape contains a nontrivial family of high-quality constructions rather than a single isolated optimum.
 
 
 
 
+\konrad{Add a main results table here comparing the best lower bounds you recover against standard references and against the recent LLM-driven Ramsey search paper where relevant. $R(5, 5)$ should get it's own section as it's not in the DeepMind paper.}
 
 
-
-\subsection{Figures}
-
-
-\begin{figure}
-  \centering
-  \fbox{\rule[-.5cm]{0cm}{4cm} \rule[-.5cm]{4cm}{0cm}}
-  \caption{Sample figure caption. Explain what the figure shows and add a key take-away message to the caption.}
-\end{figure}
-
-
-
-\subsection{Tables}
-
-
-
-
-
-\begin{table}
-  \caption{Sample table caption. Explain what the table shows and add a key take-away message to the caption.}
-  \label{sample-table}
-  \centering
-  \begin{tabular}{lll}
-    \toprule
-    \multicolumn{2}{c}{Part}                   \\
-    \cmidrule(r){1-2}
-    Name     & Description     & Size ($\mu$m) \\
-    \midrule
-    Dendrite & Input terminal  & $\approx$100     \\
-    Axon     & Output terminal & $\approx$10      \\
-    Soma     & Cell body       & up to $10^6$  \\
-    \bottomrule
-  \end{tabular}
-\end{table}
-
-
-
-
-
-
-
-
-
-\begin{ack}
-Use unnumbered first level headings for the acknowledgments. All acknowledgments
-go at the end of the paper before the list of references. Moreover, you are required to declare
-funding (financial activities supporting the submitted work) and competing interests (related financial activities outside the submitted work).
-More information about this disclosure can be found at: \url{https://neurips.cc/Conferences/2026/PaperInformation/FundingDisclosure}.
-
-
-Do {\bf not} include this section in the anonymized submission, only in the final paper. You can use the \texttt{ack} environment provided in the style file to automatically hide this section in the anonymized submission.
-\end{ack}
 
 \newpage
 
@@ -374,9 +347,8 @@ Do {\bf not} include this section in the anonymized submission, only in the fina
 \appendix
 
 \section{Technical appendices and supplementary material}
-Technical appendices with additional results, figures, graphs, and proofs may be submitted with the paper submission before the full submission deadline (see above). You can upload a ZIP file for videos or code, but do not upload a separate PDF file for the appendix. There is no page limit for the technical appendices. 
+The appendix can collect implementation details, additional ablations, proofs for any formal statements about the batching scheme, and supplementary visualizations of recovered colorings. It can also include extended witness statistics and additional instance-by-instance results that are useful for reproducibility but not essential to the main narrative.
 
-Note: Think of the appendix as ``optional reading'' for reviewers. The paper must be able to stand alone without the appendix; for example, adding critical experiments that support the main claims to an appendix is inappropriate. 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
