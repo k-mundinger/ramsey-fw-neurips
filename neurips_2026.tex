@@ -52,7 +52,9 @@
 \usepackage{hyperref}       % hyperlinks
 \usepackage{url}            % simple URL typesetting
 \usepackage{amsmath}        % for mathematical environments
+\usepackage{array}          % column-specific table formatting
 \usepackage{booktabs}       % professional-quality tables
+\usepackage{longtable}      % multi-page tables
 \usepackage{amsfonts}       % blackboard math symbols
 \usepackage{nicefrac}       % compact symbols for 1/2, etc.
 \usepackage{microtype}      % microtypography
@@ -342,6 +344,13 @@ What doesn't work (yet):
 
 We evaluate the proposed method on diagonal and near-diagonal Ramsey instances. The headline result is the repeated recovery of feasible $42$-vertex colorings for the lower bound on $R(5,5)$, matching the strongest known construction at that size. Beyond a single witness, the method produces a large collection of successful solutions, which indicates that the optimization landscape contains a nontrivial family of high-quality constructions rather than a single isolated optimum.
 
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figures/r5_5_n42_cost0.pdf}
+    \caption{Histogram of encountered witnesses for $R(5, 5) > 42$. Corresponding graphs are detailed as graph6 strings in \cref{tab:results}.}
+    \label{fig:results}
+\end{figure}
+
 
 
 
@@ -364,6 +373,10 @@ We evaluate the proposed method on diagonal and near-diagonal Ramsey instances. 
 \section{Technical appendices and supplementary material}
 The appendix can collect implementation details, additional ablations, proofs for any formal statements about the batching scheme, and supplementary visualizations of recovered colorings. It can also include extended witness statistics and additional instance-by-instance results that are useful for reproducibility but not essential to the main narrative.
 
+
+\section{Detailed results}
+
+\input{tables/r55_42_stats.tex}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
