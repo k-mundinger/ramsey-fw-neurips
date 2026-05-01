@@ -129,7 +129,7 @@ Recent computational progress in extremal combinatorics has relied on a broad sp
 
 Our guiding question is therefore not whether continuous optimization replaces specialized Ramsey search, but whether a standard first-order method can serve as a broadly useful discrete-optimization heuristic on this hard, exactly certified task. Frank-Wolfe methods are attractive in this role because their linear minimization oracle over a hypercube or product of simplices returns an extreme point. Each update is projection-free, inexpensive once gradients are available, and geometrically biased toward the discrete colorings that ultimately need to be certified \cite{frank1956algorithm,braun2022conditional}. This is the main narrative of the paper: Ramsey search exposes a setting where conditional gradients are not merely a way to solve a relaxation, but a mechanism for steering a continuous iterate toward useful combinatorial witnesses.
 
-The paper follows the problem-to-method-to-certificate path. \cref{eq:no-monochromatic-cliques} turns Ramsey search into a pseudo-Boolean polynomial objective; the continuous relaxation gives a probabilistic interpretation as the expected number of forbidden cliques; the surrogate losses reshape the gradients around near-violations; Frank-Wolfe supplies a simple projection-free update; stochastic clique batching makes the method scalable; and conditional expectation plus exhaustive checking turns relaxed candidates into certified graphs. We refer to \cite{morris2026recentresultsramseytheory} for recent Ramsey-theoretic background.
+We structure the paper as follows. \cref{eq:no-monochromatic-cliques} turns Ramsey search into a pseudo-Boolean polynomial objective; the continuous relaxation gives a probabilistic interpretation as the expected number of forbidden cliques; the surrogate losses reshape the gradients around near-violations; Frank-Wolfe supplies a simple projection-free update; stochastic clique batching makes the method scalable; and conditional expectation plus exhaustive checking turns relaxed candidates into certified graphs. We refer to \cite{morris2026recentresultsramseytheory} for recent Ramsey-theoretic background.
 
 \paragraph{Contributions.}
 \begin{itemize}
@@ -212,6 +212,13 @@ We therefore optimize a barrier-style surrogate that penalizes each potentially 
 \end{equation}
 The logarithmic transformation changes the geometry of the problem in a useful way. Each clique behaves like an individual soft constraint, and the penalty for a nearly monochromatic clique grows rapidly as its monochromatic probability approaches $1$. This is not a classical interior-point barrier for the hypercube boundary. The forbidden subgraphs, not the values $0$ and $1$, are the states being repelled; the optimizer is still allowed, and in fact encouraged, to move toward discrete edge colorings.
 
+\paragraph{Numerical clipping.}
+The logarithmic surrogate has an important implementation caveat: it is undefined when any clique has monochromatic probability exactly $1$. This can occur not only from numerical saturation, but also by design when the Frank-Wolfe search is combined with a discrete heuristic that snaps fractional edge probabilities to a binary coloring. In those cases we replace each monochromatic clique probability $p$ by $\min(p,1-\varepsilon)$ before evaluating $-\log(1-p)$, for a small $\varepsilon>0$. The forward objective is then finite and the largest per-clique penalty is controlled by $-\log \varepsilon$.
+
+There remains a choice about the gradient through this clipping operation. With the ordinary clamp, cliques whose probability exceeds $1-\varepsilon$ have zero derivative with respect to $p$; this is numerically stable, but it also removes the optimization signal from precisely the saturated constraints that caused the problem. We therefore also consider a straight-through variant: the forward pass uses the clipped value, while the backward pass treats the clipping operation as the identity. This preserves the descent direction of the original product term and caps the scalar log factor at $1/\varepsilon$, at the cost of using a biased gradient estimator rather than the exact derivative of the clipped objective. We treat this as an optimization heuristic, and report the clipping threshold and gradient convention together with the loss function in experiments.
+
+\konrad{One could stress even harder that this is only at first glance similar to the log barrier in interior point methods, it's something genuinely different.}
+
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.8\textwidth]{figures/log_loss_k4.pdf}
@@ -288,6 +295,8 @@ Starting from a relaxed iterate $x$, we process the edges one at a time. For the
 
 This derandomization step does significant work and should be reported as part of the method rather than hidden as post-processing. It is also a useful point of comparison with purely discrete search pipelines: the continuous relaxation produces fractional information, while conditional expectation converts that information into an exact candidate certificate.
 
+\konrad{Connection to continuous greedy? Although it's genuinely a different method for a different problem class.}
+
 \section{Results}
 
 We evaluate the proposed method on diagonal and near-diagonal Ramsey instances. The headline result is the repeated recovery of feasible $42$-vertex colorings for the lower bound on $R(5,5)$, matching the strongest known construction at that size. Beyond a single witness, the method produces a large collection of successful solutions, which indicates that the optimization landscape contains a nontrivial family of high-quality constructions rather than a single isolated optimum.
@@ -296,8 +305,23 @@ We evaluate the proposed method on diagonal and near-diagonal Ramsey instances. 
     \centering
     \includegraphics[width=0.8\textwidth]{figures/r5_5_n42_cost0.pdf}
     \caption{Histogram of encountered witnesses for $R(5, 5) > 42$. Corresponding graphs are detailed as graph6 strings in \cref{tab:results}.}
-    \label{fig:results}
+    \label{fig:r55-results}
 \end{figure}
+
+It becomes apparent from the histogram that there are few colorings, which the method discovers in abundance, while most colorings are only found one or a few times. Considering that there are $328$ known colorings on $42$ nodes and we have only discovered $80$ so far, it seems unrealistic that our method will be able to recover all of them. However, so far we always initialize uniformly from the hypercube / simplex. Other "priors" could change the picture substantially.
+
+To verify whether this trend is specific to $R(5, 5)$ witnesses on $42$ nodes, we also ran some experiments for $R(4, 4; 15)$, where there are $640$ known colorings. The picture is strikingly similar and depicted in \cref{fig:r4415-results}. Some colorings seem much more likely to be discovered than others.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figures/r4_4_n15_cost0.pdf}
+    \caption{Histogram of encountered witnesses for $R(4, 4; 15)$.}
+    \label{fig:r4415-results}
+\end{figure}
+
+\konrad{How to frame this further? Christoph suggested that a desirable property would be to "sample uniformly from the colorings" - I don't think that this is feasible.}
+
+
 
 The cases that work so far, in the sense that we match the known lower bound or exact value, are:
 \begin{itemize}
@@ -322,15 +346,16 @@ These results support the paper's central positioning: Frank-Wolfe style continu
   \renewcommand{\arraystretch}{1.2}
   \definecolor{cellblue}{RGB}{198,226,239}
   \definecolor{cellyellow}{RGB}{255,242,102}
+  \definecolor{cellred}{RGB}{255,102,102}
   \definecolor{cellgray}{RGB}{235,235,235}
-  \caption{Results obtained through our method.}
+  \caption{Results obtained through our method. Blue cells indicate lower bounds that are known to be optimal, yellow cells indicate lower bounds that are not yet known to be optimal and red cells indicate lower bounds that are known to be suboptimal.}
   \label{tab:small-ramsey-grid}
   \begin{tabular}{c|cccccc}
     $r \backslash s$ & 3 & 4 & 5 & 6 & 7 & 8 \\
     \hline
     3 & \cellcolor{cellblue}6 & \cellcolor{cellblue}9 & \cellcolor{cellblue}14 & \cellcolor{cellblue}18 & \cellcolor{cellblue}23 & \cellcolor{cellblue}28 \\
-    4 & \cellcolor{cellblue}9 & \cellcolor{cellblue}18 & \cellcolor{cellblue}25 & \cellcolor{cellgray}-- & \cellcolor{cellgray}-- & \cellcolor{cellgray}-- \\
-    5 &  &  & 43 & \cellcolor{cellgray}-- & \cellcolor{cellgray}-- & \cellcolor{cellgray}-- \\
+    4 &  & \cellcolor{cellblue}18 & \cellcolor{cellblue}25 & \cellcolor{cellred}34 & \cellcolor{cellgray}-- & \cellcolor{cellgray}-- \\
+    5 &  &  & \cellcolor{cellyellow}43 & \cellcolor{cellgray}-- & \cellcolor{cellgray}-- & \cellcolor{cellgray}-- \\
   \end{tabular}
 \end{table}
 
