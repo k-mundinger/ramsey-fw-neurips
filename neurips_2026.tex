@@ -212,8 +212,8 @@ We therefore optimize a barrier-style surrogate that penalizes each potentially 
 \end{equation}
 The logarithmic transformation changes the geometry of the problem in a useful way. Each clique behaves like an individual soft constraint, and the penalty for a nearly monochromatic clique grows rapidly as its monochromatic probability approaches $1$. This is not a classical interior-point barrier for the hypercube boundary. The forbidden subgraphs, not the values $0$ and $1$, are the states being repelled; the optimizer is still allowed, and in fact encouraged, to move toward discrete edge colorings.
 
-\paragraph{Numerical clipping.}
-The logarithmic surrogate has an important implementation caveat: it is undefined when any clique has monochromatic probability exactly $1$. This can occur not only from numerical saturation, but also by design when the Frank-Wolfe search is combined with a discrete heuristic that snaps fractional edge probabilities to a binary coloring. In those cases we replace each monochromatic clique probability $p$ by $\min(p,1-\varepsilon)$ before evaluating $-\log(1-p)$, for a small $\varepsilon>0$. The forward objective is then finite and the largest per-clique penalty is controlled by $-\log \varepsilon$.
+\paragraph{Gradient clipping.}
+The logarithmic surrogate has an important implementation caveat: it is undefined when any clique is monochromatic with probability $1$. This can occur not only from numerical saturation, but also by design when the Frank-Wolfe search is combined with a discrete heuristic that snaps fractional edge probabilities to a binary coloring. In those cases we replace each monochromatic clique probability $p$ by $\min(p,1-\varepsilon)$ before evaluating $-\log(1-p)$, for a small $\varepsilon>0$. The forward objective is then finite and the largest per-clique penalty is controlled by $-\log \varepsilon$.
 
 There remains a choice about the gradient through this clipping operation. With the ordinary clamp, cliques whose probability exceeds $1-\varepsilon$ have zero derivative with respect to $p$; this is numerically stable, but it also removes the optimization signal from precisely the saturated constraints that caused the problem. We therefore also consider a straight-through variant: the forward pass uses the clipped value, while the backward pass treats the clipping operation as the identity. This preserves the descent direction of the original product term and caps the scalar log factor at $1/\varepsilon$, at the cost of using a biased gradient estimator rather than the exact derivative of the clipped objective. We treat this as an optimization heuristic, and report the clipping threshold and gradient convention together with the loss function in experiments.
 
@@ -252,6 +252,16 @@ The iterate is then updated by
 where $\gamma_t \in [0,1]$ is a step size.
 
 This choice is attractive for two reasons. First, each update is projection-free and inexpensive once the gradient has been estimated. Second, the linear minimization oracle always returns a vertex of the hypercube, so the iterates are repeatedly pulled toward discrete colorings rather than remaining in the interior. In our setting this bias toward extreme points is desirable because the final goal is a binary witness, not merely a low-value continuous relaxation. This also suggests natural comparisons to projected gradient descent and other first-order baselines, which should be included once the experimental section is finalized.
+
+We also evaluate a pairwise Frank-Wolfe update, which moves probability mass directly from an ``away'' atom to the Frank-Wolfe atom. Given the usual Frank-Wolfe atom $s_t$ and an away atom
+\[
+    a_t \in \arg\max_{a \in \mathcal{A}(x_t)} \langle \nabla L(x_t), a \rangle,
+\]
+where $\mathcal{A}(x_t)$ denotes the active atoms in the current convex decomposition, the pairwise direction is $d_t = s_t - a_t$ and the update is
+\[
+    x_{t+1} = x_t + \gamma_t (s_t - a_t).
+\]
+The step size is capped by the current weight of the away atom, $\gamma_t \le \lambda_{a_t}$, so that the update only transfers existing mass from $a_t$ to $s_t$ and the iterate remains feasible. In the simplex parameterization used by the implementation, this operation can be applied independently to each edge-color probability vector: the Frank-Wolfe atom chooses the color with smallest gradient coordinate, while the away atom chooses an active color with largest gradient coordinate.
 
 \konrad{Specify the exact Frank-Wolfe variant and step-size rule used in experiments: vanilla FW, away-steps, pairwise FW, fixed schedule, line search, or something custom.}
 
