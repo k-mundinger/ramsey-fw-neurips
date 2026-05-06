@@ -166,6 +166,7 @@ We defer the detailed Ramsey chronology, bound table, and comparison with prior 
 % -----------------------------------------------------------------------
 % Draft material below: Konrad's original introduction, kept for reference
 % -----------------------------------------------------------------------
+\iffalse
 \newpage
 
 Discrete optimization problems in extremal combinatorics often have a useful asymmetry: finding an optimum may be difficult, but checking a proposed witness can be exact and cheap relative to the search. Ramsey lower bounds are a canonical example. To prove $R(r,s)>n$, it suffices to exhibit a graph on $n$ vertices with no clique of size $r$ and no independent set of size $s$, or equivalently a two-coloring of the edges of the complete graph $K_n$ with no forbidden monochromatic clique. This makes Ramsey search a useful benchmark for optimization heuristics: the search space has size $2^{\binom{n}{2}}$, the landscape is highly nonconvex and high-order, and every successful output is independently verifiable.
@@ -184,6 +185,7 @@ We structure the paper as follows. \cref{eq:no-monochromatic-cliques} turns Rams
   \item We describe a projection-free conditional-gradient pipeline with stochastic clique batching, deterministic conditional-expectation extraction, and exact verification.
   \item Empirically, the method recovers strong diagonal and near-diagonal witnesses, including repeated recovery of $42$-vertex colorings certifying $R(5,5)>42$.
 \end{itemize}
+\fi
 
 
 \section{Problem}\label{sec:problem}
@@ -206,6 +208,9 @@ The first sum counts monochromatic $K_r$ subgraphs in color $1$, and the second 
 \begin{equation}\label{eq:opt-problem}
     \min_{x \in \{0,1\}^{\binom{n}{2}}} M(x).
 \end{equation}
+
+The corresponding discrete search space has size $2^{\binom{n}{2}}$, and the induced landscape is high-order and highly nonconvex. Prior computational approaches commonly restrict to algebraic substructures such as circulant, Cayley, or vertex-transitive constructions, under which the effective variable count drops from $\binom{n}{2}$ to nearly linear in $n$. Such restrictions are powerful but raise the question of whether the imposed structure excludes relevant optima.
+
 This formulation already performs one relaxation of the satisfiability view: hard clauses become a smooth multilinear penalty on binary variables. From an optimization perspective, the next step is to relax integrality.
 
 
