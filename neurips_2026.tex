@@ -205,9 +205,9 @@ The $R(5,5,42)$ case has become one of the central heuristic-search benchmarks. 
 
 \section{The Method: Continuous Frank-Wolfe Search}\label{sec:method}
 
-We solve the relaxed problem with a Frank-Wolfe scheme. The order of presentation in this section follows the order in which the design choices accumulate. We first introduce the continuous relaxation and note the probabilistic interpretation it inherits (Section~\ref{sec:probabilistic-relaxation}). We then discuss the loss the optimizer actually operates on, because the raw multilinear objective gives a poor first-order signal and motivates a clique-wise log-barrier surrogate (Section~\ref{sec:surrogate}). With the loss fixed, we describe the Frank-Wolfe update and its closed-form linear minimization oracle (Section~\ref{sec:fw-updates}), the stochastic clique batching that makes the method scalable (Section~\ref{sec:batching}), and the deterministic conditional-expectation rounding that turns relaxed iterates into certified discrete witnesses (Section~\ref{sec:extraction}).
+We now turn Ramsey lower-bound construction into the optimization problem solved by our pipeline. The order of presentation in this section follows the order in which the design choices accumulate. We first formulate the discrete pseudo-Boolean objective and relax it to the hypercube, noting the probabilistic interpretation inherited by this relaxation (Sections~\ref{sec:discrete-formulation} and~\ref{sec:probabilistic-relaxation}). We then discuss the loss the optimizer actually operates on, because the raw multilinear objective gives a poor first-order signal and motivates a clique-wise log-barrier surrogate (Section~\ref{sec:surrogate}). With the loss fixed, we describe the Frank-Wolfe update and its closed-form linear minimization oracle (Section~\ref{sec:fw-updates}), the stochastic clique batching that makes the method scalable (Section~\ref{sec:batching}), and the deterministic conditional-expectation rounding that turns relaxed iterates into certified discrete witnesses (Section~\ref{sec:extraction}).
 
-\subsection{Probabilistic Continuous Relaxation}\label{sec:probabilistic-relaxation}
+\subsection{Discrete Optimization Formulation}\label{sec:discrete-formulation}
 
 Encode a candidate Ramsey graph $G$ on $n$ vertices as a vector $x \in \{0,1\}^m$ with $m = \binom{n}{2}$, where $x_{ij} = 1$ iff edge $\{i,j\}$ belongs to $G$. The Ramsey constraints can be stated as a satisfiability question: does an $x$ exist with no $K_r$ in $G$ and no $K_s$ in $\overline{G}$? The standard optimization reformulation replaces hard constraints by a pseudo-Boolean polynomial objective. Let $\mathcal{C}_k$ denote the family of $k$-vertex subsets of the vertex set. Define
 \begin{equation}\label{eq:no-monochromatic-cliques}
@@ -219,7 +219,11 @@ The first sum counts $K_r$ subgraphs of $G$, and the second counts $K_s$ subgrap
 \begin{equation}\label{eq:opt-problem}
     \min_{x \in \{0,1\}^{\binom{n}{2}}} M(x).
 \end{equation}
-This formulation already performs one relaxation of the satisfiability view: hard clauses become a smooth multilinear penalty on binary variables. The next step is to relax integrality:
+This formulation replaces the satisfiability view by a smooth multilinear penalty on binary variables. The next step is to relax integrality.
+
+\subsection{Probabilistic Continuous Relaxation}\label{sec:probabilistic-relaxation}
+
+Relaxing the feasible set in \cref{eq:opt-problem} gives
 \begin{equation}\label{eq:relaxed-problem}
     \min_{x \in [0,1]^m} M(x).
 \end{equation}
@@ -242,7 +246,7 @@ This relaxation is natural from two perspectives. In extremal combinatorics, it 
 
 \subsection{Clique-Wise Surrogate Losses}\label{sec:surrogate}
 
-The guarantees above apply to the raw expected-count objective $M$. This objective is conceptually natural, but in practice it provides a weak optimization signal. Because each clique contribution is a high-order product of numbers in $[0,1]$, the raw objective often yields very small gradients even when a candidate solution is close to creating a forbidden monochromatic clique. As a result, a first-order method can spend many iterations reducing already-safe regions of the graph while paying insufficient attention to the most dangerous near-violations.
+The raw expected-count objective $M$ is conceptually natural, but in practice it provides a weak optimization signal. Because each clique contribution is a high-order product of numbers in $[0,1]$, the raw objective often yields very small gradients even when a candidate solution is close to creating a forbidden monochromatic clique. As a result, a first-order method can spend many iterations reducing already-safe regions of the graph while paying insufficient attention to the most dangerous near-violations.
 
 To make this issue explicit, consider the raw expected-count objective
 \begin{equation}\label{eq:linear_expectation}
