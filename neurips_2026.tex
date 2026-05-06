@@ -148,8 +148,7 @@ We apply the continuous-relaxation approach to Ramsey lower-bound search. The Ra
 
 \paragraph{Contributions.}
 \begin{enumerate}
-    \item We formulate Ramsey lower-bound search as minimization of a differentiable multilinear violation objective over the hypercube and identify the non-monotone supermodular structure of this relaxation.
-    \item We develop a projection-free Frank-Wolfe pipeline for this objective, run without algebraic restrictions: the hypercube LMO returns binary graphs at each iterate, stochastic clique batching enables scalable gradient estimation, and conditional-expectations rounding with exact verification converts relaxed iterates into certified witnesses.
+    \item By formulating Ramsey lower-bound search as minimization of a differentiable multilinear violation objective over the hypercube, we develop a projection-free Frank-Wolfe pipeline for this objective, run without algebraic restrictions: the hypercube LMO returns binary graphs at each iterate, stochastic clique batching enables scalable gradient estimation, and conditional-expectations rounding with exact verification converts relaxed iterates into certified witnesses.
     \item We show empirically that this pipeline recovers a broad set of known Ramsey lower-bound witnesses, including repeated recovery of $42$-vertex graphs certifying $R(5,5)>42$, a long-standing frontier construction not reported by the recent AlphaEvolve Ramsey search.
 \end{enumerate}
 
