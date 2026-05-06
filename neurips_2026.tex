@@ -148,8 +148,8 @@ We apply the continuous-relaxation approach to Ramsey lower-bound search. The Ra
 
 \paragraph{Contributions.}
 \begin{enumerate}
-    \item We formulate Ramsey lower-bound search as minimization of a differentiable multilinear violation objective over the hypercube and identify the non-monotone supermodular structure of this relaxation. \konrad{I'm not sure if I would frame this as one of our main contributions. It depends on whether we make use of the ``identified'' structure, otherwise it's unclear how this helps?}
-    \item We develop a projection-free Frank-Wolfe pipeline for this objective, run without algebraic restrictions: the hypercube LMO returns binary graphs at each iterate, stochastic clique batching enables scalable gradient estimation, and conditional-expectations rounding with exact verification converts relaxed iterates into certified witnesses. \konrad{This is rather our main contribution, together with the next one.}
+    \item We formulate Ramsey lower-bound search as minimization of a differentiable multilinear violation objective over the hypercube and identify the non-monotone supermodular structure of this relaxation.
+    \item We develop a projection-free Frank-Wolfe pipeline for this objective, run without algebraic restrictions: the hypercube LMO returns binary graphs at each iterate, stochastic clique batching enables scalable gradient estimation, and conditional-expectations rounding with exact verification converts relaxed iterates into certified witnesses.
     \item We show empirically that this pipeline recovers a broad set of known Ramsey lower-bound witnesses, including repeated recovery of $42$-vertex graphs certifying $R(5,5)>42$, a long-standing frontier construction not reported by the recent AlphaEvolve Ramsey search.
 \end{enumerate}
 
@@ -394,8 +394,6 @@ These results support the paper's central claim: Frank-Wolfe style continuous op
 
 \section{Theory}
 
-\konrad{Optional: Need to check whether this repeats / complements Christophs stuff.}
-
 \subsection{Guarantees for the Raw Multilinear Objective}
 
 
@@ -444,8 +442,6 @@ for the smooth polynomial objective $M$. This is a convergence-to-stationarity s
 The method is mechanically related to continuous-greedy algorithms for submodular maximization, which also optimize multilinear extensions through repeated linear optimization over a relaxation polytope followed by rounding \cite{calinescu2011maximizing}. The analogy should not be read as a transfer of approximation guarantees. Classical continuous greedy applies to monotone submodular maximization, while specialized non-monotone DR-submodular variants require assumptions and update rules that are not the ones used here \cite{bian2017continuous}. In this paper, the connection is only geometric: conditional-gradient oracles repeatedly return extreme combinatorial atoms, biasing the relaxed trajectory toward colorings that can be extracted and certified.
 
 \section{Conclusion and Outlook}
-
-\konrad{TBD.}
 
 \newpage
 
@@ -520,8 +516,6 @@ At optimization step $t$, we evaluate one batch from each color and then apply a
 This is what ``independent batching'' means in our epoch-based implementation. The two color classes are sampled independently, but they are synchronized at the level of epochs: each step uses the $t$-th batch from the large-clique pass and the $t$-th batch from the small-clique pass, and after $T$ steps both passes are complete.
 
 This viewpoint is often clearer than thinking of each update as drawing two fresh random mini-batches from scratch. Over one epoch, every clique in each family is visited exactly once, up to the usual rounding in the last batch, and reshuffling happens only when the next epoch begins. The resulting estimator is still unbiased for the same clique-averaged objective, while fitting naturally with the ``one pass through all cliques per epoch'' interpretation used in the implementation.
-
-\konrad{Still unclear which batching option is best, or whether there is an even better option. The anchor strategy is very expensive when $|s-r|\geq 2$.}
 
 
 \section{Detailed results}
