@@ -199,7 +199,7 @@ Most exact small-value progress has come from certifying or exhaustive computati
 
 Heuristic constructive search uses structural priors, local objectives, stochastic search, or learned heuristics. Algebraic priors (Paley graphs, circulants, Cayley graphs, vertex-transitive families) reduce the variable count from $\Theta(n^2)$ to nearly linear in $n$~\cite{kalbfleisch1965,mathon1987}. Local search uses edge-flip neighborhoods with simulated annealing, tabu, or adaptive bad-subgraph objectives~\cite{piwakowski1996tabu,exootatarevic2015}. Stochastic methods include the cross-entropy method~\cite{Rubinstein2004} and neural or reinforcement-learning approaches in extremal combinatorics~\cite{wagner2021constructions}, with Ramsey-specific follow-ups~\cite{ghoselevizhang2022,ghebleh2024,berghaus2025}; recent LLM-driven evolutionary search~\cite{nagda2026reinforcedgenerationcombinatorialstructures}, building on AlphaEvolve~\cite{novikov2025alphaevolve} and Funsearch~\cite{romeraparedes2024funsearch}, produces new off-diagonal bounds. Successful constructive searches at larger off-diagonal cases typically exploit such structure, though complete small-case catalogues contain many low-symmetry graphs.
 
-The $R(5,5,42)$ case has become one of the central heuristic-search benchmarks. Exoo's 1989 construction established $R(5,5) \geq 43$ by exhibiting a 42-vertex Ramsey graph~\cite{exoo1989lower}. McKay and Radziszowski later reported 656 known $(5,5,42)$-Ramsey graphs (328 complement pairs) and proposed this case as a benchmark for heuristic search: seeded extension, simulated annealing, tabu search, and neighborhood searches repeatedly rediscovered graphs from the known collection, and none of the known 42-vertex graphs extends to a 43-vertex witness~\cite{mckayradziszowski1997subgraph}. This is strong computational evidence, but not a proof, that $R(5,5) = 43$. The recent AlphaEvolve-based Ramsey search of Nagda et al.~\cite{nagda2026reinforcedgenerationcombinatorialstructures} reports new lower bounds in off-diagonal $R(3,s)$ and $R(4,s)$ regimes, frequently using cyclic, circulant, Cayley, or Paley structure; notably, their reported results include neither an improvement nor a recovery for $R(5,5)$.
+The $R(5,5,42)$ case has become one of the central heuristic-search benchmarks. Exoo's 1989 construction established $R(5,5) \geq 43$ by exhibiting a 42-vertex Ramsey graph~\cite{exoo1989lower}. McKay and Radziszowski later reported 328 known complement pairs of $(5,5,42)$-Ramsey graphs (656 graphs if complements are counted separately) and proposed this case as a benchmark for heuristic search: seeded extension, simulated annealing, tabu search, and neighborhood searches repeatedly rediscovered graphs from the known collection, and none of the known 42-vertex graphs extends to a 43-vertex witness~\cite{mckayradziszowski1997subgraph}. This is strong computational evidence, but not a proof, that $R(5,5) = 43$. The recent AlphaEvolve-based Ramsey search of Nagda et al.~\cite{nagda2026reinforcedgenerationcombinatorialstructures} reports new lower bounds in off-diagonal $R(3,s)$ and $R(4,s)$ regimes, frequently using cyclic, circulant, Cayley, or Paley structure; notably, their reported results include neither an improvement nor a recovery for $R(5,5)$.
 
 
 
@@ -209,15 +209,15 @@ We now specify the optimization pipeline used for Ramsey lower-bound constructio
 
 \subsection{Discrete Optimization Formulation}\label{sec:discrete-formulation}
 
-Index the $m = \binom{n}{2}$ edges and encode a candidate graph $G$ by a vector $x \in \{0,1\}^m$, where $x_{ij} = 1$ if and only if edge $\{i,j\}$ belongs to $G$. Let $\mathcal{C}_k$ denote the family of $k$-vertex subsets of the vertex set. The Ramsey constraints are captured by the pseudo-Boolean violation objective
+Let $m = \binom{n}{2}$. We encode a candidate $G$ by a vector $x \in \{0,1\}^m$ with $x_{ij} = 1$ if and only if edge $\{i,j\}$ belongs to $G$. Let $\mathcal{C}_k$ denote the family of $k$-vertex subsets of the vertex set. The Ramsey constraints are captured by the pseudo-Boolean violation objective
 \begin{equation}\label{eq:no-monochromatic-cliques}
     M(x) = \sum_{C \in \mathcal{C}_r} \prod_{\{i,j\} \subseteq C} x_{ij}
     \quad + \quad
     \sum_{C \in \mathcal{C}_s} \prod_{\{i,j\} \subseteq C} \left(1 - x_{ij}\right).
 \end{equation}
-The two sums count forbidden cliques in $G$ and in $\overline{G}$, respectively. Thus $M(x) = 0$ if and only if $x$ encodes a valid witness for $R(r,s) > n$. The corresponding discrete optimization problem is
+The first sum counts $K_r$ subgraphs in $G$; the second counts $K_s$ subgraphs in $\overline{G}$. Thus $M(x) = 0$ if and only if $x$ encodes a Ramsey witness for $R(r,s) > n$. The corresponding discrete optimization problem is
 \begin{equation}\label{eq:opt-problem}
-    \min_{x \in \{0,1\}^{\binom{n}{2}}} M(x).
+    \min_{x \in \{0,1\}^m} M(x).
 \end{equation}
 
 \subsection{Probabilistic Continuous Relaxation}\label{sec:probabilistic-relaxation}
@@ -229,7 +229,7 @@ Relaxing only the binary constraint in \cref{eq:opt-problem} gives
 
 Under this relaxation, each variable $x_{ij}$ can be interpreted as the probability that edge $\{i,j\}$ is present under an independent Bernoulli edge model. The value $M(x)$ is then the expected number of $K_r$ subgraphs and $s$-element independent sets, since each product term is the probability that the corresponding vertex set is fully present or fully absent.
 
-The objective is a multilinear polynomial of degree $\binom{\max(r,s)}{2}$ in $m = \binom{n}{2}$ variables, so gradients can be computed explicitly whenever clique enumeration is feasible. The relaxation exposes informative descent directions and allows the optimizer to exploit partial progress before an iterate has fully polarized.
+The objective is a multilinear polynomial of degree $\binom{\max(r,s)}{2}$ in $m$ variables, so gradients can be computed explicitly whenever the relevant vertex-set families can be enumerated. The relaxation exposes informative descent directions and lets the optimizer exploit partial progress before iterates reach a hypercube vertex.
 
 The polynomial $M$ is supermodular on the hypercube: each clique term has nonnegative mixed partial derivatives in the variables it contains. It is non-monotone, because the $K_r$ terms are increasing in the edge variables whereas the independent-set terms are decreasing.
 
@@ -254,7 +254,7 @@ We therefore optimize a barrier-style surrogate that penalizes each potentially 
     -
     \sum_{D \in \mathcal{C}_s} \log\left(1 - p_s(D;x)\right).
 \end{equation}
-The surrogate changes only the search objective. The logarithmic transformation treats each clique as an individual soft constraint, with a penalty that grows rapidly as its monochromatic probability approaches $1$. Despite the superficial resemblance, this is not a classical interior-point log-barrier: a barrier method repels iterates from the boundary of the feasible set, whereas here it is the forbidden monochromatic subgraphs that are repelled. The values $0$ and $1$ on individual edges are not penalized; the optimizer can move toward discrete edge colorings as long as no clique becomes fully monochromatic in the process.
+The surrogate changes only the search loss. The logarithmic transformation treats each clique as an individual soft constraint, with a penalty that grows rapidly as its monochromatic probability approaches $1$. Despite the superficial resemblance, this is not a classical interior-point log-barrier: a barrier method repels iterates from the boundary of the feasible set, whereas here it is the forbidden monochromatic subgraphs that are repelled. The values $0$ and $1$ on individual edges are not penalized; the optimizer can move toward discrete edge colorings as long as no clique becomes fully monochromatic in the process.
 
 \paragraph{Gradient clipping.}
 The logarithmic surrogate has an implementation caveat: it is undefined when any clique is monochromatic with probability $1$. This can occur through numerical saturation or by design when Frank-Wolfe is combined with a discrete heuristic that snaps fractional edge probabilities to a binary coloring. In those cases we replace each monochromatic clique probability $p$ by $\min(p,1-\varepsilon)$ before evaluating $-\log(1-p)$, for a small $\varepsilon>0$. The forward objective is then finite, and the largest per-clique penalty is controlled by $-\log \varepsilon$.
@@ -272,7 +272,7 @@ We treat the choice of surrogate as a design decision rather than a theorem-leve
 
 \subsection{Frank-Wolfe Updates}\label{sec:fw-updates}
 
-Let $F$ denote the differentiable search loss supplied to the optimizer, for example the raw objective $M$, the log-barrier surrogate $L$, or a clipped variant of $L$. We optimize $F$ over the hypercube $[0,1]^m$ with a Frank-Wolfe method \cite{frank1956algorithm,braun2022conditional}. At iteration $t$, given a current iterate $x_t$, the linear minimization subproblem is
+Let $F$ denote the differentiable search loss supplied to the optimizer, such as the raw violation count $M$, the log-barrier surrogate $L$, or a clipped variant of $L$. We optimize $F$ over the hypercube $[0,1]^m$ with a Frank-Wolfe method \cite{frank1956algorithm,braun2022conditional}. At iteration $t$, given a current iterate $x_t$, the linear minimization subproblem is
 \begin{equation}
     s_t \in \arg\min_{s \in [0,1]^m} \langle \nabla F(x_t), s \rangle.
 \end{equation}
@@ -305,7 +305,7 @@ The main computational bottleneck is enumerating the forbidden vertex sets. Even
 \[
 |\mathcal{C}_k| = \binom{n}{k},
 \]
-is far too large for exact evaluation at every Frank-Wolfe step. Since the search losses are sums of independent clique-wise penalties, the natural approximation is to replace these sums by mini-batch estimates.
+is far too large for exact evaluation at every Frank-Wolfe step. Since the search loss is a sum of independent clique-wise penalties, the natural approximation is to replace this sum by a mini-batch estimate.
 
 Let $\ell_r(C;x)$ and $\ell_s(D;x)$ denote the two per-clique contributions. For the barrier surrogate in \cref{eq:log_barrier},
 \[
@@ -327,29 +327,29 @@ In diagonal instances, both terms are indexed by the same family of vertex sets,
 
 \subsection{Extraction and Verification}\label{sec:extraction}
 
-Lower bounds are certified only after converting a candidate point to a binary coloring and verifying directly that no forbidden monochromatic cliques remain. In our implementation this conversion is deterministic and is performed by the method of conditional expectation applied to the raw violation objective $M$, regardless of which search loss $F$ produced the candidate. The guarantee is therefore a guarantee for $M$, not for the surrogate objective optimized by Frank-Wolfe.
+Lower bounds are certified only after converting a fractional candidate to a binary witness and verifying directly that no forbidden monochromatic cliques remain. In our implementation this conversion is deterministic and is performed by the method of conditional expectation applied to the raw violation count $M$, regardless of which search loss $F$ produced the candidate. The guarantee is therefore a guarantee for $M$, not for the surrogate loss optimized by Frank-Wolfe.
 
-Starting from a fractional candidate $x \in [0,1]^m$, we process edges one at a time in an arbitrary order. For the current undecided edge $e$, we evaluate $M$ conditioned on fixing $x_e=0$ and on fixing $x_e=1$, keeping the remaining undecided edges at their current fractional values, and permanently assign the value yielding the smaller conditional value. Because $M$ is multilinear, and therefore affine in each coordinate, we have
+Starting from a fractional candidate $x \in [0,1]^m$, we process edges one at a time in an arbitrary order. For the current undecided edge $e$, we evaluate $M$ conditioned on fixing $x_e=0$ and on fixing $x_e=1$, keeping the remaining undecided edges at their current fractional values, and permanently fix $x_e$ to the endpoint with the smaller conditional expectation of $M$. Because $M$ is multilinear, and therefore affine in each coordinate, we have
 \[
     M(x) \;=\; x_e\, M(x \mid x_e = 1) \;+\; (1-x_e)\, M(x \mid x_e = 0),
 \]
-so at least one of the two endpoints has value no larger than the current conditional expectation. Iterating this argument over all edges produces a binary coloring $\widehat{x} \in \{0,1\}^m$ with
+so at least one of the two endpoints has value no larger than the current conditional expectation. Iterating this argument over all edges produces a binary witness $\widehat{x} \in \{0,1\}^m$ with
 \[
-    M(\widehat{x}) \;\le\; M(x).
+    M(\widehat{x}) \;\leq\; M(x).
 \]
-Since $M(\widehat{x})$ is a nonnegative integer, any fractional point with $M(x) < 1$ is guaranteed to round to a valid Ramsey witness with $M(\widehat{x}) = 0$. This threshold is sufficient, not necessary: conditional-expectation rounding can still succeed from points with larger raw expected violation count, and the final certificate does not rely on the fractional objective value. We verify $\widehat{x}$ against the original Ramsey constraints by the clique-checking procedure described in \cref{sec:problem}.
+Since $M(\widehat{x})$ is a nonnegative integer, any fractional point with $M(x) < 1$ is guaranteed to round to a Ramsey witness with $M(\widehat{x}) = 0$. This threshold is sufficient, not necessary: conditional-expectation rounding can still succeed from points with larger raw expected violation count, and the final certificate does not rely on the fractional objective value. We verify $\widehat{x}$ against the original Ramsey constraints by the clique-checking procedure described in \cref{sec:problem}.
 
 \section{Results}
 
 We evaluate the method on diagonal and near-diagonal Ramsey instances; the global picture is summarized in \cref{tab:small-ramsey-grid}. The pipeline matches the best known lower bound across a broad swath of the small-Ramsey table: it certifies $R(3,k) > L(3,k)$ for all $k \leq 8$ (where $L(r,s)$ denotes the current best known lower bound), recovers the exact values $R(4,4) = 18$ and $R(4,5) = 25$, and most importantly reproduces $R(5,5) \geq 43$ by repeatedly finding $42$-vertex colorings with no monochromatic $K_5$ in either color. The $R(5,5)$ result is the headline: it matches the strongest known construction at that size~\cite{exoo1989lower} and is a bound that recent LLM-driven evolutionary search did not recover~\cite{nagda2026reinforcedgenerationcombinatorialstructures}. The current pipeline does not yet produce a witness at the target size for $R(4,6)$, where our best run has $5$ monochromatic cliques remaining on $35$ vertices, and $R(4,7)$ and $R(5,6)$ are out of reach at present at our compute budget; we discuss these cases below.
 
 \paragraph{Many witnesses.}
-A striking feature of the $R(5,5)$ runs is that the method does not converge to a single isolated solution. Across independent restarts it produces a large collection of distinct $42$-vertex certificates, indicating that the optimization landscape contains a nontrivial family of high-quality constructions rather than a single basin. \cref{fig:r55-results} visualizes this as a histogram of how often each distinct certificate (identified up to isomorphism by its graph6 string) was encountered; the corresponding graphs are listed in \cref{tab:results}. The shape of the histogram is informative: a small number of colorings are recovered in abundance, while a long tail of colorings is found only one or a few times. So far the method has discovered $80$ of the $328$ known $42$-vertex colorings. We do not expect to recover all of them with the current uniform initialization; designing initialization priors that bias the search toward under-represented basins is a natural direction for future work.
+A striking feature of the $R(5,5)$ runs is that the method does not converge to a single isolated solution. Across independent restarts it produces a large collection of distinct $42$-vertex certificates, indicating that the optimization landscape contains a nontrivial family of high-quality constructions rather than a single basin. \cref{fig:r55-results} visualizes this as a histogram of how often each distinct certificate class was encountered, identifying classes up to isomorphism and complement; representative graph6 strings are listed in \cref{tab:results}. The shape of the histogram is informative: a small number of colorings are recovered in abundance, while a long tail of colorings is found only one or a few times. So far the method has discovered $80$ of the $328$ known complement classes of $42$-vertex colorings. We do not expect to recover all of them with the current uniform initialization; designing initialization priors that bias the search toward under-represented basins is a natural direction for future work.
 
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.8\textwidth]{figures/r5_5_n42_cost0.pdf}
-    \caption{Histogram of encountered witnesses for $R(5, 5) > 42$. Each bar is a distinct $42$-vertex certificate (up to isomorphism); the height is the number of independent runs that recovered it. Corresponding graphs are listed as graph6 strings in \cref{tab:results}.}
+    \caption{Histogram of encountered witnesses for $R(5, 5) > 42$. Each bar is a distinct $42$-vertex certificate class up to isomorphism and complement; the height is the number of independent runs that recovered it. Representative graphs are listed as graph6 strings in \cref{tab:results}.}
     \label{fig:r55-results}
 \end{figure}
 
@@ -456,7 +456,7 @@ The appendix collects implementation details, additional ablations, proofs for a
 
 \subsection{Detailed batching scheme}
 
-For batching, it is convenient to work with the clique-family-averaged search loss
+For batching, it is convenient to work with the vertex-family-averaged search loss
 \[
 \bar{L}(x)
 :=
@@ -468,7 +468,7 @@ For batching, it is convenient to work with the clique-family-averaged search lo
 \]
 where $\ell_r$ and $\ell_s$ are the per-clique terms of the chosen search loss. This normalization is part of the optimization objective being sampled. When $r=s$, it differs from the raw sum by a common scalar factor. When $r\neq s$, it changes the relative weighting of the two color classes compared with the raw sum; this balances average per-family penalties during search, while extraction and certification still use the raw violation count $M$.
 
-The diagonal case $r=s$ is straightforward. Both color terms are indexed by the same family of $r$-cliques, so we sample a single batch $S \subseteq \mathcal{C}_r$ and evaluate both colors on that same set:
+The diagonal case $r=s$ is straightforward. Both color terms are indexed by the same family of $r$-vertex sets, so we sample a single batch $S \subseteq \mathcal{C}_r$ and evaluate both colors on that same set:
 \[
 \widehat{L}_{\mathrm{diag}}(x)
 :=
@@ -477,27 +477,27 @@ The diagonal case $r=s$ is straightforward. Both color terms are indexed by the 
 \]
 This is an unbiased estimator of $\bar{L}(x)$. Using the same batch for both colors is also the most intuitive choice: each stochastic update compares the red and blue penalties on exactly the same local vertex pattern, rather than adding variance from two unrelated samples.
 
-The off-diagonal case $r \neq s$ requires one more design choice because the two color terms live on different clique families. Here the main question is not whether to batch, but how to organize the two batches across an epoch.
+The off-diagonal case $r \neq s$ requires one more design choice because the two color terms live on different vertex-set families. Here the main question is not whether to batch, but how to organize the two batches across an epoch.
 
 Let
 \[
 R = \max(r,s), \qquad q = \min(r,s),
 \]
-and let $\ell_R$ and $\ell_q$ denote the clique penalties for the corresponding two colors. We choose a batch size $B_R$ for the larger clique family $\mathcal{C}_R$, and define
+and let $\ell_R$ and $\ell_q$ denote the per-set penalties for the corresponding two colors. We choose a batch size $B_R$ for the larger vertex-set family $\mathcal{C}_R$, and define
 \[
 T = \left\lceil \frac{|\mathcal{C}_R|}{B_R} \right\rceil
 \]
-to be the number of optimization steps in one epoch. At the start of the epoch, we randomly permute all $R$-cliques and partition them into batches
+to be the number of optimization steps in one epoch. At the start of the epoch, we randomly permute all $R$-vertex sets and partition them into batches
 \[
 A_1,\dots,A_T,
 \qquad |A_t| \leq B_R.
 \]
-We then independently permute the smaller clique family $\mathcal{C}_q$ and partition it into the same number $T$ of batches
+We then independently permute the smaller vertex-set family $\mathcal{C}_q$ and partition it into the same number $T$ of batches
 \[
 B_1,\dots,B_T,
 \qquad |B_t| \approx \frac{|\mathcal{C}_q|}{T}.
 \]
-Equivalently, the smaller-clique batch size is chosen so that both colors finish one full pass through their respective clique families at the same time.
+Equivalently, the smaller-family batch size is chosen so that both colors finish one full pass through their respective vertex-set families at the same time.
 
 At optimization step $t$, we evaluate one batch from each color and then apply a single update:
 \[
@@ -511,7 +511,7 @@ At optimization step $t$, we evaluate one batch from each color and then apply a
 \]
 This is what ``independent batching'' means in our epoch-based implementation. The two color classes are sampled independently, but they are synchronized at the level of epochs: each step uses the $t$-th batch from the large-clique pass and the $t$-th batch from the small-clique pass, and after $T$ steps both passes are complete.
 
-This viewpoint is often clearer than thinking of each update as drawing two fresh random mini-batches from scratch. Over one epoch, every clique in each family is visited exactly once, up to the usual rounding in the last batch, and reshuffling happens only when the next epoch begins. The resulting estimator is still unbiased for the same clique-averaged objective, while fitting naturally with the ``one pass through all cliques per epoch'' interpretation used in the implementation.
+This viewpoint is often clearer than thinking of each update as drawing two fresh random mini-batches from scratch. Over one epoch, every set in each family is visited exactly once, up to the usual rounding in the last batch, and reshuffling happens only when the next epoch begins. The resulting estimator is still unbiased for the same vertex-family-averaged objective, while fitting naturally with the ``one pass through all vertex sets per epoch'' interpretation used in the implementation.
 
 
 \section{Detailed results}
