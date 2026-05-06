@@ -65,7 +65,7 @@
 \newcommand{\konrad}[1]{\todo[inline,color=green!40]{Konrad: #1}}
 
 % Note. For the workshop paper template, both \title{} and \workshoptitle{} are required, with the former indicating the paper title shown in the title and the latter indicating the workshop title displayed in the footnote. 
-\title{(Re-)discovering Ramsey Numbers via Frank-Wolfe}
+\title{A Continuous Detour to Ramsey Graphs: Frank-Wolfe for Non-Monotone Supermodular Objectives}
 
 
 % The \author macro works with any number of authors. There are two commands
@@ -116,7 +116,9 @@
 
 
 \begin{abstract}
-  Certifying lower bounds for Ramsey numbers is a hard discrete optimization problem with an unusually clean success criterion: a single explicit coloring, checked exhaustively, proves the claim. We study this setting as a test case for Frank-Wolfe style continuous optimization as a heuristic for combinatorial search. Starting from the clique-counting formulation of Ramsey lower bounds, we pass through a probabilistic continuous relaxation, use clique-wise surrogate losses to sharpen the optimization signal, and apply projection-free conditional-gradient updates with stochastic clique batching. The resulting pipeline repeatedly recovers diagonal and near-diagonal Ramsey witnesses, including $42$-vertex constructions certifying $R(5,5)>42$. These experiments suggest that simple first-order continuous methods can be effective tools for producing exact certificates in difficult discrete search problems.
+    Establishing Ramsey number lower bounds by finding n-vertex graphs that avoid large cliques and large independent sets constitutes a well-studied class of hard combinatorial feasibility problems. Known bounds have accumulated over decades through problem-specific discrete heuristics, with several key values remaining out of reach for generic methods. Recent LLM-driven evolutionary search using AlphaEvolve (Nagda et al., 2026) follows the same pattern: it obtained new off-diagonal bounds but stayed entirely within the discrete paradigm.
+
+    We bypass discrete search entirely. Casting the construction problem as pseudo-Boolean polynomial optimization and relaxing the binary constraints to the unit hypercube yields a smooth multilinear objective. Frank-Wolfe on this relaxation performs surprisingly well: its linear minimization oracle returns binary solutions at each step, driving reliable progress despite the objective being non-monotone supermodular. A conditional expectations rounding converts the fractional solution to a binary one without increasing the objective. This mirrors Continuous Greedy for monotone submodular objectives, as both rely on an LMO returning binary solutions at each step, thus extending the mechanism to the non-monotone setting. This pipeline recovers a significant portion of the known lower bound table, most notably finding 42-vertex graphs certifying  $R(5,5) \geq 43$, a bound standing since 1989 that AlphaEvolve did not recover.
 \end{abstract}
 
 
