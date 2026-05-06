@@ -229,7 +229,7 @@ Relaxing only the binary constraint in \cref{eq:opt-problem} gives
 
 Under this relaxation, each variable $x_{ij}$ can be interpreted as the probability that edge $\{i,j\}$ is present under an independent Bernoulli edge model. The value $M(x)$ is then the expected number of $K_r$ subgraphs and $s$-element independent sets, since each product term is the probability that the corresponding vertex set is fully present or fully absent.
 
-The objective is a multilinear polynomial of degree $\binom{\max(r,s)}{2}$ in $m = \binom{n}{2}$ variables, so gradients can be computed explicitly whenever clique enumeration is feasible. The relaxation exposes informative descent directions and allows the optimizer to exploit partial progress before an iterate has fully polarized.
+The objective is a multilinear polynomial of degree $\binom{\max(r,s)}{2}$ in $m = \binom{n}{2}$ variables, so gradients can be computed explicitly whenever the relevant vertex-set families can be enumerated. The relaxation exposes informative descent directions and allows the optimizer to exploit partial progress before an iterate has fully polarized.
 
 The polynomial $M$ is supermodular on the hypercube: each clique term has nonnegative mixed partial derivatives in the variables it contains. It is non-monotone, because the $K_r$ terms are increasing in the edge variables whereas the independent-set terms are decreasing.
 
@@ -456,7 +456,7 @@ The appendix collects implementation details, additional ablations, proofs for a
 
 \subsection{Detailed batching scheme}
 
-For batching, it is convenient to work with the clique-family-averaged search loss
+For batching, it is convenient to work with the vertex-family-averaged search loss
 \[
 \bar{L}(x)
 :=
@@ -468,7 +468,7 @@ For batching, it is convenient to work with the clique-family-averaged search lo
 \]
 where $\ell_r$ and $\ell_s$ are the per-clique terms of the chosen search loss. This normalization is part of the optimization objective being sampled. When $r=s$, it differs from the raw sum by a common scalar factor. When $r\neq s$, it changes the relative weighting of the two color classes compared with the raw sum; this balances average per-family penalties during search, while extraction and certification still use the raw violation count $M$.
 
-The diagonal case $r=s$ is straightforward. Both color terms are indexed by the same family of $r$-cliques, so we sample a single batch $S \subseteq \mathcal{C}_r$ and evaluate both colors on that same set:
+The diagonal case $r=s$ is straightforward. Both color terms are indexed by the same family of $r$-vertex sets, so we sample a single batch $S \subseteq \mathcal{C}_r$ and evaluate both colors on that same set:
 \[
 \widehat{L}_{\mathrm{diag}}(x)
 :=
@@ -477,27 +477,27 @@ The diagonal case $r=s$ is straightforward. Both color terms are indexed by the 
 \]
 This is an unbiased estimator of $\bar{L}(x)$. Using the same batch for both colors is also the most intuitive choice: each stochastic update compares the red and blue penalties on exactly the same local vertex pattern, rather than adding variance from two unrelated samples.
 
-The off-diagonal case $r \neq s$ requires one more design choice because the two color terms live on different clique families. Here the main question is not whether to batch, but how to organize the two batches across an epoch.
+The off-diagonal case $r \neq s$ requires one more design choice because the two color terms live on different vertex-set families. Here the main question is not whether to batch, but how to organize the two batches across an epoch.
 
 Let
 \[
 R = \max(r,s), \qquad q = \min(r,s),
 \]
-and let $\ell_R$ and $\ell_q$ denote the clique penalties for the corresponding two colors. We choose a batch size $B_R$ for the larger clique family $\mathcal{C}_R$, and define
+and let $\ell_R$ and $\ell_q$ denote the per-set penalties for the corresponding two colors. We choose a batch size $B_R$ for the larger vertex-set family $\mathcal{C}_R$, and define
 \[
 T = \left\lceil \frac{|\mathcal{C}_R|}{B_R} \right\rceil
 \]
-to be the number of optimization steps in one epoch. At the start of the epoch, we randomly permute all $R$-cliques and partition them into batches
+to be the number of optimization steps in one epoch. At the start of the epoch, we randomly permute all $R$-vertex sets and partition them into batches
 \[
 A_1,\dots,A_T,
 \qquad |A_t| \leq B_R.
 \]
-We then independently permute the smaller clique family $\mathcal{C}_q$ and partition it into the same number $T$ of batches
+We then independently permute the smaller vertex-set family $\mathcal{C}_q$ and partition it into the same number $T$ of batches
 \[
 B_1,\dots,B_T,
 \qquad |B_t| \approx \frac{|\mathcal{C}_q|}{T}.
 \]
-Equivalently, the smaller-clique batch size is chosen so that both colors finish one full pass through their respective clique families at the same time.
+Equivalently, the smaller-family batch size is chosen so that both colors finish one full pass through their respective vertex-set families at the same time.
 
 At optimization step $t$, we evaluate one batch from each color and then apply a single update:
 \[
@@ -511,7 +511,7 @@ At optimization step $t$, we evaluate one batch from each color and then apply a
 \]
 This is what ``independent batching'' means in our epoch-based implementation. The two color classes are sampled independently, but they are synchronized at the level of epochs: each step uses the $t$-th batch from the large-clique pass and the $t$-th batch from the small-clique pass, and after $T$ steps both passes are complete.
 
-This viewpoint is often clearer than thinking of each update as drawing two fresh random mini-batches from scratch. Over one epoch, every clique in each family is visited exactly once, up to the usual rounding in the last batch, and reshuffling happens only when the next epoch begins. The resulting estimator is still unbiased for the same clique-averaged objective, while fitting naturally with the ``one pass through all cliques per epoch'' interpretation used in the implementation.
+This viewpoint is often clearer than thinking of each update as drawing two fresh random mini-batches from scratch. Over one epoch, every set in each family is visited exactly once, up to the usual rounding in the last batch, and reshuffling happens only when the next epoch begins. The resulting estimator is still unbiased for the same vertex-family-averaged objective, while fitting naturally with the ``one pass through all vertex sets per epoch'' interpretation used in the implementation.
 
 
 \section{Detailed results}
