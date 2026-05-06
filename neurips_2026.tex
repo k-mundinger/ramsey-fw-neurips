@@ -208,6 +208,9 @@ The first sum counts monochromatic $K_r$ subgraphs in color $1$, and the second 
 \begin{equation}\label{eq:opt-problem}
     \min_{x \in \{0,1\}^{\binom{n}{2}}} M(x).
 \end{equation}
+
+The corresponding discrete search space has size $2^{\binom{n}{2}}$, and the induced landscape is high-order and highly nonconvex. Prior computational approaches commonly restrict to algebraic substructures such as circulant, Cayley, or vertex-transitive constructions, under which the effective variable count drops from $\binom{n}{2}$ to nearly linear in $n$. Such restrictions are powerful but raise the question of whether the imposed structure excludes relevant optima.
+
 This formulation already performs one relaxation of the satisfiability view: hard clauses become a smooth multilinear penalty on binary variables. From an optimization perspective, the next step is to relax integrality.
 
 \subsection{Probabilistic Continuous Relaxation}
