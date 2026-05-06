@@ -188,9 +188,54 @@ The objective is a multilinear polynomial of degree $\binom{\max(r,s)}{2}$ in $m
 
 This relaxation is natural from two perspectives. In extremal combinatorics, it is the probabilistic variant of the coloring problem. In discrete optimization, it is the passage from SAT-style hard constraints to a pseudo-Boolean objective and then to an integrality relaxation. The important caveat is that fractional progress is useful only insofar as it can be extracted into a binary coloring and verified directly.
 
+\subsection{Guarantees for the Raw Multilinear Objective}
+
+The relaxed problem in \cref{eq:relaxed-problem} is nonconvex, so we should not expect global convergence guarantees from first-order optimization alone. Nevertheless, the raw multilinear objective has several useful structural properties that make the relaxation meaningful for certificate search.
+
+\paragraph{No integrality gap.}
+The relaxation introduces no integrality gap for the raw objective $M$. More generally, let $F:[0,1]^m\to\mathbb{R}$ be any multilinear function. Since $F$ is affine in each coordinate separately, fixing all other coordinates and minimizing over one coordinate always admits an endpoint minimizer. Repeating this argument coordinate by coordinate gives
+\[
+    \min_{x\in[0,1]^m} F(x)
+    =
+    \min_{x\in\{0,1\}^m} F(x).
+\]
+Thus the continuous relaxation of $M$ is exact in the global-optimum sense: any fractional global optimum can be converted to a binary global optimum without increasing the expected number of violations. This does not make the optimization problem easy, but it rules out the usual failure mode where the relaxation is intrinsically too weak.
+
+\paragraph{Conditional-expectation extraction.}
+The same coordinate-wise multilinearity gives a deterministic rounding guarantee. For any fractional point $x\in[0,1]^m$, process the edges in an arbitrary order. When edge $e$ is considered, compare the value of $M$ after fixing $x_e=0$ with the value after fixing $x_e=1$, keeping all unprocessed edges at their current fractional values, and choose the better endpoint. Because $M$ is affine in $x_e$,
+\[
+    M(x)
+    =
+    x_e M(x\mid x_e=1)
+    +
+    (1-x_e) M(x\mid x_e=0),
+\]
+so at least one endpoint has value no larger than the current conditional expectation. Iterating over all edges produces a binary coloring $\widehat{x}$ satisfying
+\[
+    M(\widehat{x}) \le M(x).
+\]
+Since $M(\widehat{x})$ is a nonnegative integer, any relaxed point with $M(x)<1$ rounds to a valid Ramsey witness with $M(\widehat{x})=0$.
+
+\paragraph{Frank-Wolfe stationarity.}
+For exact-gradient optimization of a smooth objective over a compact convex domain, nonconvex Frank-Wolfe has a standard convergence guarantee in terms of the Frank-Wolfe gap \cite{lacostejulien2016convergence,braun2022conditional}. In the hypercube formulation for the raw objective, this gap is
+\[
+    g_M(x)
+    =
+    \max_{s\in[0,1]^m}
+    \langle x-s,\nabla M(x)\rangle .
+\]
+Under standard step-size rules, exact Frank-Wolfe guarantees
+\[
+    \min_{0\leq t<T} g_M(x_t) = O(T^{-1/2})
+\]
+for the smooth polynomial objective $M$. This is a convergence-to-stationarity statement, not a guarantee of finding a global Ramsey witness. Its role here is more modest: it provides a principled continuous optimization baseline, while the certificate guarantee above explains what is sufficient for successful rounding.
+
+\paragraph{Relation to continuous greedy.}
+The method is mechanically related to continuous-greedy algorithms for submodular maximization, which also optimize multilinear extensions through repeated linear optimization over a relaxation polytope followed by rounding \cite{calinescu2011maximizing}. The analogy should not be read as a transfer of approximation guarantees. Classical continuous greedy applies to monotone submodular maximization, while specialized non-monotone DR-submodular variants require assumptions and update rules that are not the ones used here \cite{bian2017continuous}. In this paper, the connection is only geometric: conditional-gradient oracles repeatedly return extreme combinatorial atoms, biasing the relaxed trajectory toward colorings that can be extracted and certified.
+
 \subsection{Clique-Wise Surrogate Losses}
 
-The relaxed objective in \cref{eq:relaxed-problem} is conceptually natural, but in practice it provides a weak optimization signal. Because each clique contribution is a high-order product of numbers in $[0,1]$, the raw objective often yields very small gradients even when a candidate solution is close to creating a forbidden monochromatic clique. As a result, a first-order method can spend many iterations reducing already-safe regions of the graph while paying insufficient attention to the most dangerous near-violations.
+The guarantees above apply to the raw expected-count objective $M$. This objective is conceptually natural, but in practice it provides a weak optimization signal. Because each clique contribution is a high-order product of numbers in $[0,1]$, the raw objective often yields very small gradients even when a candidate solution is close to creating a forbidden monochromatic clique. As a result, a first-order method can spend many iterations reducing already-safe regions of the graph while paying insufficient attention to the most dangerous near-violations.
 
 To make this issue explicit, consider the raw expected-count objective
 \begin{equation}\label{eq:linear_expectation}
