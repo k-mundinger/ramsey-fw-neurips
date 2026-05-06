@@ -205,7 +205,7 @@ The $R(5,5,42)$ case has become one of the central heuristic-search benchmarks. 
 
 \section{The Method: Continuous Frank-Wolfe Search}\label{sec:method}
 
-We now specify the optimization pipeline used for Ramsey lower-bound construction. We first encode violations by a pseudo-Boolean objective and relax the binary variables to the hypercube. We then choose the differentiable loss optimized by Frank-Wolfe, approximate its clique-wise sums by mini-batches, and extract a verified binary witness.
+Section~\ref{sec:problem} cast Ramsey lower-bound construction as a pseudo-Boolean violation-minimization problem. We now turn this into a continuous Frank-Wolfe pipeline whose subsections accumulate from relaxation to a verified binary witness.
 
 \subsection{Discrete Optimization Formulation}\label{sec:discrete-formulation}
 
@@ -229,9 +229,7 @@ Relaxing only the binary constraint in \cref{eq:opt-problem} gives
 
 Under this relaxation, each variable $x_{ij}$ can be interpreted as the probability that edge $\{i,j\}$ is present under an independent Bernoulli edge model. The value $M(x)$ is then the expected number of $K_r$ subgraphs and $s$-element independent sets, since each product term is the probability that the corresponding vertex set is fully present or fully absent.
 
-The objective is a multilinear polynomial of degree $\binom{\max(r,s)}{2}$ in $m$ variables, so gradients can be computed explicitly whenever the relevant vertex-set families can be enumerated. The relaxation exposes informative descent directions and lets the optimizer exploit partial progress before iterates reach a hypercube vertex.
-
-The polynomial $M$ is supermodular on the hypercube: each clique term has nonnegative mixed partial derivatives in the variables it contains. It is non-monotone, because the $K_r$ terms are increasing in the edge variables whereas the independent-set terms are decreasing.
+The objective is a multilinear polynomial of degree $\binom{\max(r,s)}{2}$ in $m$ variables, with gradients computable whenever the relevant vertex-set families can be enumerated. It is supermodular on the hypercube --- each clique term has nonnegative mixed partial derivatives in the variables it contains --- but non-monotone: the $K_r$ terms are increasing in the edge variables whereas the independent-set terms are decreasing.
 
 
 \subsection{Clique-Wise Surrogate Losses}\label{sec:surrogate}
