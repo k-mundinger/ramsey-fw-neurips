@@ -125,6 +125,26 @@
 
 \section{Introduction}
 
+Hard combinatorial feasibility problems can often be reformulated as smooth optimization:
+moving constraints into the objective as penalty terms and relaxing binary variables to the
+unit hypercube yields a differentiable problem accessible to first-order methods. This has
+been well studied for structured objective classes — Continuous Greedy provides approximation
+guarantees for monotone submodular maximization by exploiting a linear oracle that returns
+vertices of the feasible polytope at each step \cite{vondrak2008optimal,calinescu2011maximizing}.
+We are interested in problems that fall outside this well-mapped territory: non-monotone
+objectives, where existing guarantees break down and a continuous approach operates as a
+deliberate heuristic. We explore Frank-Wolfe for this setting \cite{braun2022conditional}:
+each step reduces to the same linear vertex-returning oracle as Continuous Greedy, but the
+update rules differ in a way that matters — CG accumulates additive steps from zero, a
+design that exploits and requires monotonicity; FW instead takes a convex combination of
+the current iterate and the oracle vertex, allowing coordinates to move in either direction.
+We study this on Ramsey lower-bound search as a concrete, exactly verifiable test case.
+
+% -----------------------------------------------------------------------
+% Draft material below: Konrad's original introduction, kept for reference
+% -----------------------------------------------------------------------
+\newpage
+
 Discrete optimization problems in extremal combinatorics often have a useful asymmetry: finding an optimum may be difficult, but checking a proposed witness can be exact and cheap relative to the search. Ramsey lower bounds are a canonical example. To prove $R(r,s)>n$, it suffices to exhibit a graph on $n$ vertices with no clique of size $r$ and no independent set of size $s$, or equivalently a two-coloring of the edges of the complete graph $K_n$ with no forbidden monochromatic clique. This makes Ramsey search a useful benchmark for optimization heuristics: the search space has size $2^{\binom{n}{2}}$, the landscape is highly nonconvex and high-order, and every successful output is independently verifiable.
 
 Recent computational progress in extremal combinatorics has relied on a broad spectrum of ideas, including classical local search, cross-entropy methods, neural constructions, and LLM-assisted heuristic discovery \cite{Rubinstein2004,wagner2021constructions,nagda2026reinforcedgenerationcombinatorialstructures}. These methods often exploit restrictions of the search space, such as algebraic, circulant, vertex-transitive, Cayley, or vertex-by-vertex constructions, which can reduce the number of effective variables from quadratic in $n$ to nearly linear. Such restrictions are powerful, but they raise the usual question of whether the imposed structure excludes the relevant optima. The complementary approach we study here is to keep the full edge-variable search space and relax the discrete problem into a differentiable one.
