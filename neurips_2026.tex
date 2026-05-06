@@ -118,12 +118,32 @@
 \begin{abstract}
     Establishing Ramsey number lower bounds by finding n-vertex graphs that avoid large cliques and large independent sets constitutes a well-studied class of hard combinatorial feasibility problems. Known bounds have accumulated over decades through problem-specific discrete heuristics, with several key values remaining out of reach for generic methods. Recent LLM-driven evolutionary search using AlphaEvolve (Nagda et al., 2026) follows the same pattern: it obtained new off-diagonal bounds but stayed entirely within the discrete paradigm.
 
-    We bypass discrete search entirely. Casting the construction problem as pseudo-Boolean polynomial optimization and relaxing the binary constraints to the unit hypercube yields a smooth multilinear objective. Frank-Wolfe on this relaxation performs surprisingly well: its linear minimization oracle returns binary solutions at each step, driving reliable progress despite the objective being non-monotone supermodular. A conditional expectations rounding converts the fractional solution to a binary one without increasing the objective. This mirrors Continuous Greedy for monotone submodular objectives, as both rely on an LMO returning binary solutions at each step, thus extending the mechanism to the non-monotone setting. This pipeline recovers a significant portion of the known lower bound table, most notably finding 42-vertex graphs certifying  $R(5,5) \geq 43$, a bound standing since 1989 that AlphaEvolve did not recover.
+    We bypass discrete search entirely. Casting the construction problem as minimization of a pseudo-Boolean polynomial violation count and relaxing the binary constraints to the unit hypercube yields a smooth multilinear objective. Frank-Wolfe performs surprisingly well on this relaxation: its linear minimization oracle over the hypercube returns binary vertices, driving reliable progress despite the objective being non-monotone supermodular. The connection to Continuous Greedy — which exploits the same linear oracle for monotone submodular maximization — offers some intuition as to why. A conditional-expectations rounding converts the fractional solution to a binary one without increasing the violation count. This pipeline recovers a significant portion of the known lower-bound table, most notably finding 42-vertex graphs certifying $R(5,5) \geq 43$, a bound standing since 1989 that AlphaEvolve did not recover.
 \end{abstract}
 
 
 
 \section{Introduction}
+
+Hard combinatorial feasibility problems can often be reformulated as smooth optimization:
+moving constraints into the objective as penalty terms and relaxing binary variables to the
+unit hypercube yields a differentiable problem accessible to first-order methods. This has
+been well studied for structured objective classes — Continuous Greedy provides approximation
+guarantees for monotone submodular maximization by exploiting a linear oracle that returns
+vertices of the feasible polytope at each step \cite{vondrak2008optimal,calinescu2011maximizing}.
+We are interested in problems that fall outside this well-mapped territory: non-monotone
+objectives, where existing guarantees break down and a continuous approach operates as a
+deliberate heuristic. We explore Frank-Wolfe for this setting \cite{braun2022conditional}:
+each step reduces to the same linear vertex-returning oracle as Continuous Greedy, but the
+update rules differ in a way that matters — CG accumulates additive steps from zero, a
+design that exploits and requires monotonicity; FW instead takes a convex combination of
+the current iterate and the oracle vertex, allowing coordinates to move in either direction.
+We study this on Ramsey lower-bound search as a concrete, exactly verifiable test case.
+
+% -----------------------------------------------------------------------
+% Draft material below: Konrad's original introduction, kept for reference
+% -----------------------------------------------------------------------
+\newpage
 
 Discrete optimization problems in extremal combinatorics often have a useful asymmetry: finding an optimum may be difficult, but checking a proposed witness can be exact and cheap relative to the search. Ramsey lower bounds are a canonical example. To prove $R(r,s)>n$, it suffices to exhibit a graph on $n$ vertices with no clique of size $r$ and no independent set of size $s$, or equivalently a two-coloring of the edges of the complete graph $K_n$ with no forbidden monochromatic clique. This makes Ramsey search a useful benchmark for optimization heuristics: the search space has size $2^{\binom{n}{2}}$, the landscape is highly nonconvex and high-order, and every successful output is independently verifiable.
 
