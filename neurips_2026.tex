@@ -140,6 +140,8 @@ design that exploits and requires monotonicity; FW instead takes a convex combin
 the current iterate and the oracle vertex, allowing coordinates to move in either direction.
 We study this on Ramsey lower-bound search as a concrete, exactly verifiable test case.
 
+The Ramsey number $R(r,s)$ is the critical graph order at which every graph must contain either a clique of size $r$ or an independent set of size $s$; certifying $R(r,s) > n$ requires producing a graph on $n$ vertices with clique number strictly less than $r$ and independence number strictly less than $s$. Several key values have resisted decades of effort: most notably, $R(5,5)$ is known to lie between 43 and 46, with the lower bound standing since Exoo (1989) despite sustained search~\cite{exoo1989lower}. Prior computational approaches --- local search heuristics such as simulated annealing and tabu search, ad-hoc extensions of existing Ramsey graphs, and constructions restricted to algebraic families such as circulant or Cayley graphs --- have remained entirely discrete. We apply the continuous framework above to Ramsey lower-bound search and note that treating each edge as independently present with some probability, the objective naturally becomes the expected number of cliques and independent sets in the resulting random graph. The continuous optimization phrasing also has a natural connection to the probabilistic method, which has been an important proof tool in extremal combinatorics since its introduction by Erd\H{o}s~\cite{erdos1947remarks}.
+
 % -----------------------------------------------------------------------
 % Draft material below: Konrad's original introduction, kept for reference
 % -----------------------------------------------------------------------
