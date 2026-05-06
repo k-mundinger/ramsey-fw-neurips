@@ -205,50 +205,38 @@ The $R(5,5,42)$ case has become one of the central heuristic-search benchmarks. 
 
 \section{The Method: Continuous Frank-Wolfe Search}\label{sec:method}
 
-We now turn Ramsey lower-bound construction into the optimization problem solved by our pipeline. The order of presentation in this section follows the order in which the design choices accumulate. We first formulate the discrete pseudo-Boolean objective and relax it to the hypercube, noting the probabilistic interpretation inherited by this relaxation (Sections~\ref{sec:discrete-formulation} and~\ref{sec:probabilistic-relaxation}). We then discuss the loss the optimizer actually operates on, because the raw multilinear objective gives a poor first-order signal and motivates a clique-wise log-barrier surrogate (Section~\ref{sec:surrogate}). With the loss fixed, we describe the Frank-Wolfe update and its closed-form linear minimization oracle (Section~\ref{sec:fw-updates}), the stochastic clique batching that makes the method scalable (Section~\ref{sec:batching}), and the deterministic conditional-expectation rounding that turns relaxed iterates into certified discrete witnesses (Section~\ref{sec:extraction}).
+We now specify the optimization pipeline used for Ramsey lower-bound construction. We first encode violations by a pseudo-Boolean objective and relax the binary variables to the hypercube. We then choose the differentiable loss optimized by Frank-Wolfe, approximate its clique-wise sums by mini-batches, and extract a verified binary witness.
 
 \subsection{Discrete Optimization Formulation}\label{sec:discrete-formulation}
 
-Encode a candidate Ramsey graph $G$ on $n$ vertices as a vector $x \in \{0,1\}^m$ with $m = \binom{n}{2}$, where $x_{ij} = 1$ iff edge $\{i,j\}$ belongs to $G$. The Ramsey constraints can be stated as a satisfiability question: does an $x$ exist with no $K_r$ in $G$ and no $K_s$ in $\overline{G}$? The standard optimization reformulation replaces hard constraints by a pseudo-Boolean polynomial objective. Let $\mathcal{C}_k$ denote the family of $k$-vertex subsets of the vertex set. Define
+Index the $m = \binom{n}{2}$ edges and encode a candidate graph $G$ by a vector $x \in \{0,1\}^m$, where $x_{ij} = 1$ if and only if edge $\{i,j\}$ belongs to $G$. Let $\mathcal{C}_k$ denote the family of $k$-vertex subsets of the vertex set. The Ramsey constraints are captured by the pseudo-Boolean violation objective
 \begin{equation}\label{eq:no-monochromatic-cliques}
     M(x) = \sum_{C \in \mathcal{C}_r} \prod_{\{i,j\} \subseteq C} x_{ij}
     \quad + \quad
     \sum_{C \in \mathcal{C}_s} \prod_{\{i,j\} \subseteq C} \left(1 - x_{ij}\right).
 \end{equation}
-The first sum counts $K_r$ subgraphs of $G$, and the second counts $K_s$ subgraphs of $\overline{G}$. Thus $M(x) = 0$ if and only if $x$ encodes a valid witness for $R(r,s) > n$. The corresponding discrete optimization problem is
+The two sums count forbidden cliques in $G$ and in $\overline{G}$, respectively. Thus $M(x) = 0$ if and only if $x$ encodes a valid witness for $R(r,s) > n$. The corresponding discrete optimization problem is
 \begin{equation}\label{eq:opt-problem}
     \min_{x \in \{0,1\}^{\binom{n}{2}}} M(x).
 \end{equation}
-This exact reformulation replaces the satisfiability view by a multilinear pseudo-Boolean violation objective on binary variables. The next step is to relax integrality.
 
 \subsection{Probabilistic Continuous Relaxation}\label{sec:probabilistic-relaxation}
 
-Relaxing the feasible set in \cref{eq:opt-problem} gives
+Relaxing only the binary constraint in \cref{eq:opt-problem} gives
 \begin{equation}\label{eq:relaxed-problem}
     \min_{x \in [0,1]^m} M(x).
 \end{equation}
 
-Under this relaxation, each variable $x_{ij}$ can be interpreted as the probability that edge $\{i,j\}$ is present in $G$, under an independent Bernoulli edge model. The objective $M(x)$ is then the expected number of $K_r$ subgraphs and $s$-element independent sets in the resulting random graph, since each product term gives the probability of the corresponding subgraph being fully present or fully absent. This probabilistic view preserves a direct connection to the discrete search problem while exposing a continuous domain on which first-order methods can operate.
+Under this relaxation, each variable $x_{ij}$ can be interpreted as the probability that edge $\{i,j\}$ is present under an independent Bernoulli edge model. The value $M(x)$ is then the expected number of $K_r$ subgraphs and $s$-element independent sets, since each product term is the probability that the corresponding vertex set is fully present or fully absent.
 
-Equivalently, the relaxed problem can be written as
+The objective is a multilinear polynomial of degree $\binom{\max(r,s)}{2}$ in $m = \binom{n}{2}$ variables, so gradients can be computed explicitly whenever clique enumeration is feasible. The relaxation exposes informative descent directions and allows the optimizer to exploit partial progress before an iterate has fully polarized.
 
-\begin{align}\label{eq:constrained-problem}
-    \min_{x} \quad &\sum_{C \in \mathcal{C}_r} \prod_{\{i,j\} \subseteq C} x_{ij}
-    \quad + \quad
-    \sum_{C \in \mathcal{C}_s} \prod_{\{i,j\} \subseteq C} \left(1 - x_{ij}\right), \\
-    \text{s.t.} \quad &x \in [0,1]^m.
-\end{align}
-
-The objective is a multilinear polynomial of degree $\binom{\max(r,s)}{2}$ in $m = \binom{n}{2}$ variables, so gradients can be computed explicitly whenever clique enumeration is feasible. Although any final certificate must still be discrete, the continuous relaxation is useful because it exposes informative descent directions and allows the optimizer to exploit partial progress before a valid witness has fully polarized.
-
-The raw objective has the structural form emphasized in the introduction. Each clique term has nonnegative mixed partial derivatives, so $M$ is supermodular on the hypercube. The $K_r$ terms are increasing in the edge variables, while the independent-set terms are decreasing; their sum is therefore non-monotone.
-
-This relaxation is natural from two perspectives. In extremal combinatorics, it is the probabilistic-method relaxation of the discrete construction problem. In discrete optimization, it is the passage from SAT-style hard constraints to a pseudo-Boolean objective and then to an integrality relaxation. The important caveat is that fractional progress is useful only insofar as it can be rounded to a binary witness and verified directly.
+The polynomial $M$ is supermodular on the hypercube: each clique term has nonnegative mixed partial derivatives in the variables it contains. It is non-monotone, because the $K_r$ terms are increasing in the edge variables whereas the independent-set terms are decreasing.
 
 
 \subsection{Clique-Wise Surrogate Losses}\label{sec:surrogate}
 
-The raw expected-count objective $M$ is conceptually natural and is the objective used for rounding and certification, but in practice it can provide a weak optimization signal. Because each clique contribution is a high-order product of numbers in $[0,1]$, the raw objective often yields very small gradients even when a candidate solution is close to creating a forbidden monochromatic clique. As a result, a first-order method can spend many iterations reducing already-safe regions of the graph while paying insufficient attention to the most dangerous near-violations.
+The raw expected-count objective $M$ is used for rounding and certification, but in practice it can provide a weak optimization signal. Because each clique contribution is a high-order product of numbers in $[0,1]$, the raw objective often yields very small gradients even when a candidate solution is close to creating a forbidden monochromatic clique. A first-order method can then spend many iterations reducing already-safe regions of the graph while paying insufficient attention to the most dangerous near-violations.
 
 For a clique $C \in \mathcal{C}_r$ and an $s$-vertex set $D \in \mathcal{C}_s$, write
 \[
@@ -266,12 +254,12 @@ We therefore optimize a barrier-style surrogate that penalizes each potentially 
     -
     \sum_{D \in \mathcal{C}_s} \log\left(1 - p_s(D;x)\right).
 \end{equation}
-The surrogate changes only the search objective; rounding and certification below remain defined in terms of $M$. The logarithmic transformation changes the geometry of the problem in a useful way. Each clique behaves like an individual soft constraint, and the penalty for a nearly monochromatic clique grows rapidly as its monochromatic probability approaches $1$. We emphasize that, despite the superficial resemblance, this is genuinely different from a classical interior-point log-barrier: a barrier method repels iterates from the boundary of the feasible set, whereas here it is the forbidden monochromatic subgraphs that are repelled. The values $0$ and $1$ on individual edges are not penalized at all; the optimizer is allowed, and in fact encouraged, to move toward discrete edge colorings, as long as no clique becomes fully monochromatic in the process.
+The surrogate changes only the search objective. The logarithmic transformation treats each clique as an individual soft constraint, with a penalty that grows rapidly as its monochromatic probability approaches $1$. Despite the superficial resemblance, this is not a classical interior-point log-barrier: a barrier method repels iterates from the boundary of the feasible set, whereas here it is the forbidden monochromatic subgraphs that are repelled. The values $0$ and $1$ on individual edges are not penalized; the optimizer can move toward discrete edge colorings as long as no clique becomes fully monochromatic in the process.
 
 \paragraph{Gradient clipping.}
-The logarithmic surrogate has an important implementation caveat: it is undefined when any clique is monochromatic with probability $1$. This can occur not only from numerical saturation, but also by design when the Frank-Wolfe search is combined with a discrete heuristic that snaps fractional edge probabilities to a binary coloring. In those cases we replace each monochromatic clique probability $p$ by $\min(p,1-\varepsilon)$ before evaluating $-\log(1-p)$, for a small $\varepsilon>0$. The forward objective is then finite, and the largest per-clique penalty is controlled by $-\log \varepsilon$.
+The logarithmic surrogate has an implementation caveat: it is undefined when any clique is monochromatic with probability $1$. This can occur through numerical saturation or by design when Frank-Wolfe is combined with a discrete heuristic that snaps fractional edge probabilities to a binary coloring. In those cases we replace each monochromatic clique probability $p$ by $\min(p,1-\varepsilon)$ before evaluating $-\log(1-p)$, for a small $\varepsilon>0$. The forward objective is then finite, and the largest per-clique penalty is controlled by $-\log \varepsilon$.
 
-There remains a choice about the gradient through this clipping operation. With the ordinary clamp, Frank-Wolfe is applied to the clipped objective, and cliques whose probability exceeds $1-\varepsilon$ have zero derivative with respect to $p$. This is numerically stable, but it also removes the optimization signal from precisely the saturated constraints that caused the problem. We therefore also consider a straight-through variant: the forward pass uses the clipped value, while the backward pass treats the clipping operation as the identity. This preserves the descent direction of the original product term and caps the scalar log factor at $1/\varepsilon$, at the cost of using a biased gradient estimator rather than the exact derivative of the clipped objective. We treat this variant as an optimization heuristic, and report the clipping threshold and gradient convention together with the loss function in experiments.
+The gradient through this clipping operation requires a convention. With the ordinary clamp, Frank-Wolfe is applied to the clipped objective, and cliques whose probability exceeds $1-\varepsilon$ have zero derivative with respect to $p$. This is numerically stable, but it also removes the optimization signal from precisely the saturated constraints that caused the problem. We therefore also consider a straight-through variant: the forward pass uses the clipped value, while the backward pass treats the clipping operation as the identity. This preserves the descent direction of the original product term and caps the scalar log factor at $1/\varepsilon$, at the cost of using a biased gradient estimator rather than the exact derivative of the clipped objective. We treat this variant as an optimization heuristic and report the clipping threshold and gradient convention together with the loss function in experiments.
 
 \begin{figure}[h]
     \centering
@@ -280,11 +268,11 @@ There remains a choice about the gradient through this clipping operation. With 
     \label{fig:log-loss-k4}
 \end{figure}
 
-We treat the choice of surrogate as a design decision rather than a theorem-level necessity. Recent experiments suggest that, with suitable hyperparameters, the vanilla probability loss can also recover certificates for $R(5,5)$ on $42$ vertices. The log-barrier objective remains useful as a principled way to emphasize near-violations, but the results should ultimately include an ablation separating the effect of the surrogate from the effect of the optimizer and batching strategy.
+We treat the choice of surrogate as a design decision rather than a theorem-level necessity. Preliminary runs indicate that, with suitable hyperparameters, the vanilla probability loss can also recover certificates for $R(5,5)$ on $42$ vertices. The log-barrier objective remains useful as a principled way to emphasize near-violations; a systematic ablation separating the surrogate from the optimizer and batching strategy is left for future work.
 
 \subsection{Frank-Wolfe Updates}\label{sec:fw-updates}
 
-Let $F$ denote the differentiable search loss supplied to the optimizer, for example the raw objective $M$, the log-barrier surrogate $L$, or a clipped variant of $L$. We optimize $F$ over the hypercube $[0,1]^m$ with a Frank-Wolfe type method \cite{frank1956algorithm,braun2022conditional}. At iteration $t$, given a current iterate $x_t$, the linear minimization subproblem is
+Let $F$ denote the differentiable search loss supplied to the optimizer, for example the raw objective $M$, the log-barrier surrogate $L$, or a clipped variant of $L$. We optimize $F$ over the hypercube $[0,1]^m$ with a Frank-Wolfe method \cite{frank1956algorithm,braun2022conditional}. At iteration $t$, given a current iterate $x_t$, the linear minimization subproblem is
 \begin{equation}
     s_t \in \arg\min_{s \in [0,1]^m} \langle \nabla F(x_t), s \rangle.
 \end{equation}
@@ -303,7 +291,7 @@ The iterate is then updated by
 \end{equation}
 where $\gamma_t \in [0,1]$ is a step size.
 
-This choice is attractive for two reasons. First, each update is projection-free and inexpensive once the gradient has been estimated. Second, the linear minimization oracle always returns a vertex of the hypercube, so the iterates are repeatedly pulled toward discrete colorings rather than remaining in the interior. In our setting this bias toward extreme points is desirable because the final goal is a binary witness, not merely a low-value continuous relaxation.
+This update is projection-free and inexpensive once the gradient has been estimated. The oracle also returns a vertex of the hypercube, so each iterate is a convex combination of explicit binary colorings rather than the result of a projection back to the feasible set.
 
 All experiments reported below use this vanilla Frank-Wolfe update with a standard diminishing step-size schedule. We also tested pairwise and away-step variants. They converged faster on some small instances, but did not produce reliable convergence for $R(5,5)$ at $n=42$ within the budgets we tested; we therefore report vanilla Frank-Wolfe as the main method and leave a careful study of active-set variants at this scale to future work.
 
@@ -313,24 +301,35 @@ All experiments reported below use this vanilla Frank-Wolfe update with a standa
 
 \subsection{Stochastic Clique Batching}\label{sec:batching}
 
-The main computational bottleneck is clique enumeration. Even for moderate $n$, the number of $k$-cliques,
+The main computational bottleneck is enumerating the forbidden vertex sets. Even for moderate $n$, the number of $k$-vertex subsets,
 \[
 |\mathcal{C}_k| = \binom{n}{k},
 \]
-is far too large for exact evaluation at every Frank-Wolfe step. Since our objectives are sums of independent clique-wise penalties, the natural approximation is to replace the full sum by a mini-batch average.
+is far too large for exact evaluation at every Frank-Wolfe step. Since the search losses are sums of independent clique-wise penalties, the natural approximation is to replace these sums by mini-batch estimates.
 
-Let $\ell_r(C;x)$ and $\ell_s(C;x)$ denote the contribution of clique $C$ to the two color classes. For the barrier surrogate in \cref{eq:log_barrier},
+Let $\ell_r(C;x)$ and $\ell_s(D;x)$ denote the two per-clique contributions. For the barrier surrogate in \cref{eq:log_barrier},
 \[
-\ell_r(C;x) = -\log\left(1 - \prod_{\{i,j\} \subseteq C} x_{ij}\right),
+\ell_r(C;x) = -\log\left(1 - p_r(C;x)\right),
 \qquad
-\ell_s(C;x) = -\log\left(1 - \prod_{\{i,j\} \subseteq C} (1-x_{ij})\right).
+\ell_s(D;x) = -\log\left(1 - p_s(D;x)\right).
 \]
-In diagonal instances, both terms are indexed by the same family of cliques, so each stochastic step samples a batch $S\subseteq \mathcal{C}_r$ and evaluates both colors on the same local vertex patterns. In off-diagonal instances, the two terms live on different clique families; our implementation synchronizes independent batches across epochs so that both color classes complete one full pass through their respective clique families at the same time. The detailed batching construction is given in the appendix.
+Mini-batches are used for the search loss, not for the certifying objective $M$. In particular, the implementation uses per-family averages such as
+\[
+\bar{L}(x)
+:=
+\frac{1}{|\mathcal{C}_r|}\sum_{C \in \mathcal{C}_r} \ell_r(C;x)
++
+\frac{1}{|\mathcal{C}_s|}\sum_{D \in \mathcal{C}_s} \ell_s(D;x),
+\]
+which balances the average penalty in each color class. In diagonal instances this differs from the raw sum $L$ only by a common scalar factor. In off-diagonal instances it is a deliberate weighting choice: estimating the raw sum instead would require multiplying the two mini-batch averages by $|\mathcal{C}_r|$ and $|\mathcal{C}_s|$, respectively. Rounding and final verification remain defined in terms of the unnormalized violation count $M$.
+
+In diagonal instances, both terms are indexed by the same family of vertex sets, so each stochastic step samples a batch $S\subseteq \mathcal{C}_r$ and evaluates both colors on the same local patterns. In off-diagonal instances, the two terms live on different set families; our implementation synchronizes independent batches across epochs so that both color classes complete one full pass through their respective families at the same time. The detailed batching construction is given in the appendix.
+
 \subsection{Extraction and Verification}\label{sec:extraction}
 
-Lower bounds are certified only after converting a candidate point to a binary coloring and verifying directly that no forbidden monochromatic cliques remain. In our implementation this conversion is deterministic and is performed by the method of conditional expectation. The choice is not cosmetic, because it is what guarantees that the rounding step cannot make the relaxed objective worse.
+Lower bounds are certified only after converting a candidate point to a binary coloring and verifying directly that no forbidden monochromatic cliques remain. In our implementation this conversion is deterministic and is performed by the method of conditional expectation applied to the raw violation objective $M$, regardless of which search loss $F$ produced the candidate. The guarantee is therefore a guarantee for $M$, not for the surrogate objective optimized by Frank-Wolfe.
 
-Starting from a relaxed iterate $x \in [0,1]^m$, we process edges one at a time in an arbitrary order. For the current undecided edge $e$, we evaluate the objective conditioned on fixing $x_e=0$ and on fixing $x_e=1$, keeping the remaining undecided edges at their current fractional values, and permanently assign the value yielding the smaller conditional objective. Because $M$ is multilinear, and therefore affine in each coordinate, we have
+Starting from a fractional candidate $x \in [0,1]^m$, we process edges one at a time in an arbitrary order. For the current undecided edge $e$, we evaluate $M$ conditioned on fixing $x_e=0$ and on fixing $x_e=1$, keeping the remaining undecided edges at their current fractional values, and permanently assign the value yielding the smaller conditional value. Because $M$ is multilinear, and therefore affine in each coordinate, we have
 \[
     M(x) \;=\; x_e\, M(x \mid x_e = 1) \;+\; (1-x_e)\, M(x \mid x_e = 0),
 \]
@@ -338,9 +337,7 @@ so at least one of the two endpoints has value no larger than the current condit
 \[
     M(\widehat{x}) \;\le\; M(x).
 \]
-Since $M(\widehat{x})$ is a nonnegative integer, this has a sharp consequence: any relaxed point with $M(x) < 1$ is rounded to a valid Ramsey witness with $M(\widehat{x}) = 0$. Driving the relaxed objective strictly below one is therefore sufficient to obtain a certificate, even though the relaxed problem itself is nonconvex and we have no global optimization guarantee. We finally verify $\widehat{x}$ directly by exhaustive clique checking, or equivalently by running a max-clique routine on the graph and its complement; absence of a forbidden monochromatic $K_r$ or $K_s$ certifies the claimed lower bound.
-
-This conditional-expectation step is the bridge between the continuous relaxation and the discrete certificate: the optimizer produces fractional information about how monochromatic cliques are being avoided in expectation, and conditional expectation turns that information into an exact candidate witness without ever increasing the violation count.
+Since $M(\widehat{x})$ is a nonnegative integer, any fractional point with $M(x) < 1$ is guaranteed to round to a valid Ramsey witness with $M(\widehat{x}) = 0$. This threshold is sufficient, not necessary: conditional-expectation rounding can still succeed from points with larger raw expected violation count, and the final certificate does not rely on the fractional objective value. We verify $\widehat{x}$ against the original Ramsey constraints by the clique-checking procedure described in \cref{sec:problem}.
 
 \section{Results}
 
@@ -459,7 +456,7 @@ The appendix collects implementation details, additional ablations, proofs for a
 
 \subsection{Detailed batching scheme}
 
-For batching, it is convenient to work with the clique-averaged objective
+For batching, it is convenient to work with the clique-family-averaged search loss
 \[
 \bar{L}(x)
 :=
@@ -469,7 +466,7 @@ For batching, it is convenient to work with the clique-averaged objective
 \frac{1}{|\mathcal{C}_s|}
 \sum_{C \in \mathcal{C}_s} \ell_s(C;x),
 \]
-whose gradient has the same form as the original objective up to a constant rescaling.
+where $\ell_r$ and $\ell_s$ are the per-clique terms of the chosen search loss. This normalization is part of the optimization objective being sampled. When $r=s$, it differs from the raw sum by a common scalar factor. When $r\neq s$, it changes the relative weighting of the two color classes compared with the raw sum; this balances average per-family penalties during search, while extraction and certification still use the raw violation count $M$.
 
 The diagonal case $r=s$ is straightforward. Both color terms are indexed by the same family of $r$-cliques, so we sample a single batch $S \subseteq \mathcal{C}_r$ and evaluate both colors on that same set:
 \[
