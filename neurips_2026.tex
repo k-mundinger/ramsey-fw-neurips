@@ -199,37 +199,7 @@ Much of the computational exact small-value progress comes from certifying or ex
 
 Heuristic constructive search uses structural priors, local objectives, stochastic search, or learned heuristics. Algebraic priors (Paley graphs, circulants, Cayley graphs, vertex-transitive families) reduce the variable count from $\binom{n}{2}$ to nearly linear in $n$~\cite{kalbfleisch1965,mathon1987}. Local search uses edge-flip neighborhoods with simulated annealing, tabu, or adaptive bad-subgraph objectives~\cite{piwakowski1996tabu,exootatarevic2015}. Stochastic methods include the cross-entropy method~\cite{Rubinstein2004} and neural or reinforcement-learning approaches in extremal combinatorics~\cite{wagner2021constructions}, with Ramsey-specific follow-ups~\cite{ghoselevizhang2022,ghebleh2024,berghaus2025}; recent LLM-driven evolutionary search~\cite{nagda2026reinforcedgenerationcombinatorialstructures}, building on AlphaEvolve~\cite{novikov2025alphaevolve} and Funsearch~\cite{romeraparedes2024funsearch}, produces new off-diagonal bounds. Successful constructive searches at larger off-diagonal cases typically exploit such structure, though complete small-case catalogues contain many low-symmetry graphs.
 
-The $R(5,5,42)$ case has attracted the most heuristic-search effort to date. Exoo's 1989 construction established $R(5,5) \geq 43$ by exhibiting a 42-vertex Ramsey graph~\cite{exoo1989lower}. McKay and Radziszowski later reported 656 known $(5,5,42)$-Ramsey graphs (328 complement pairs) and proposed this case as a benchmark for heuristic search: seeded extension, simulated annealing, tabu search, and neighborhood searches repeatedly rediscovered graphs from the same family, and no known class extends to 43 vertices~\cite{mckayradziszowski1997subgraph}. This is strong computational evidence, but not a proof, that $R(5,5) = 43$. The recent AlphaEvolve-based Ramsey search of Nagda et al.~\cite{nagda2026reinforcedgenerationcombinatorialstructures} reports new lower bounds in off-diagonal $R(3,s)$ and $R(4,s)$ regimes, frequently using cyclic, circulant, Cayley, or Paley structure; notably, $R(5,5)$ appears in their reported results neither as an improvement nor as a recovery.
-
-% Draft S2 additions go here; existing optimization-oriented prose below is
-% Konrad's draft material and will be relocated or integrated after the
-% section structure is settled.
-
-\subsection{Ramsey Search as Discrete Optimization}
-
-Let $K_n=(V,E)$ be the complete graph on $n$ vertices, and write $m=\binom{n}{2}$ for the number of edges. A two-coloring can be represented by a vector
-\[
-x=(x_{ij})_{1\leq i<j\leq n}\in \{0,1\}^{\binom{n}{2}},
-\]
-where $x_{ij}=1$ denotes that edge $\{i,j\}$ receives the first color and $x_{ij}=0$ the second. For integers $r,s \geq 2$, the Ramsey number $R(r,s)$ is the smallest $n$ such that every coloring of $K_n$ contains either a monochromatic $K_r$ in the first color or a monochromatic $K_s$ in the second. Equivalently, a certificate for the lower bound $R(r,s)>n$ is a graph on $n$ vertices with no $r$-clique and no independent set of size $s$.
-
-The problem is often stated as a satisfiability question: does there exist a coloring satisfying all constraints that forbid these cliques? We use the standard optimization reformulation that replaces hard constraints by a pseudo-Boolean polynomial objective. Let $\mathcal{C}_k$ denote the family of $k$-vertex subsets of $V$. Define
-\begin{equation}\label{eq:no-monochromatic-cliques}
-    M(x) = \sum_{C \in \mathcal{C}_r} \prod_{\{i,j\} \subseteq C} x_{ij}
-    \quad + \quad
-    \sum_{C \in \mathcal{C}_s} \prod_{\{i,j\} \subseteq C} \left(1 - x_{ij}\right).
-\end{equation}
-The first sum counts monochromatic $K_r$ subgraphs in color $1$, and the second counts monochromatic $K_s$ subgraphs in color $0$. Thus $M(x)=0$ if and only if $x$ is a valid witness for $R(r,s)>n$. The corresponding discrete optimization problem is
-\begin{equation}\label{eq:opt-problem}
-    \min_{x \in \{0,1\}^{\binom{n}{2}}} M(x).
-\end{equation}
-
-The corresponding discrete search space has size $2^{\binom{n}{2}}$, and the induced landscape is high-order and highly nonconvex. Prior computational approaches commonly restrict to algebraic substructures such as circulant, Cayley, or vertex-transitive constructions, under which the effective variable count drops from $\binom{n}{2}$ to nearly linear in $n$. Such restrictions are powerful but raise the question of whether the imposed structure excludes relevant optima.
-
-This formulation already performs one relaxation of the satisfiability view: hard clauses become a smooth multilinear penalty on binary variables. From an optimization perspective, the next step is to relax integrality.
-
-
-
+The $R(5,5,42)$ case has become one of the central heuristic-search benchmarks. Exoo's 1989 construction established $R(5,5) \geq 43$ by exhibiting a 42-vertex Ramsey graph~\cite{exoo1989lower}. McKay and Radziszowski later reported 656 known $(5,5,42)$-Ramsey graphs (328 complement pairs) and proposed this case as a benchmark for heuristic search: seeded extension, simulated annealing, tabu search, and neighborhood searches repeatedly rediscovered graphs from the known collection, and none of the known 42-vertex graphs extends to a 43-vertex witness~\cite{mckayradziszowski1997subgraph}. This is strong computational evidence, but not a proof, that $R(5,5) = 43$. The recent AlphaEvolve-based Ramsey search of Nagda et al.~\cite{nagda2026reinforcedgenerationcombinatorialstructures} reports new lower bounds in off-diagonal $R(3,s)$ and $R(4,s)$ regimes, frequently using cyclic, circulant, Cayley, or Paley structure; notably, their reported results include neither an improvement nor a recovery for $R(5,5)$.
 
 
 
@@ -239,13 +209,22 @@ We solve the relaxed problem with a Frank-Wolfe scheme. The order of presentatio
 
 \subsection{Probabilistic Continuous Relaxation}\label{sec:probabilistic-relaxation}
 
-The discrete feasible set in \cref{eq:opt-problem} admits a natural continuous relaxation:
-
+Encode a candidate Ramsey graph $G$ on $n$ vertices as a vector $x \in \{0,1\}^m$ with $m = \binom{n}{2}$, where $x_{ij} = 1$ iff edge $\{i,j\}$ belongs to $G$. The Ramsey constraints can be stated as a satisfiability question: does an $x$ exist with no $K_r$ in $G$ and no $K_s$ in $\overline{G}$? The standard optimization reformulation replaces hard constraints by a pseudo-Boolean polynomial objective. Let $\mathcal{C}_k$ denote the family of $k$-vertex subsets of the vertex set. Define
+\begin{equation}\label{eq:no-monochromatic-cliques}
+    M(x) = \sum_{C \in \mathcal{C}_r} \prod_{\{i,j\} \subseteq C} x_{ij}
+    \quad + \quad
+    \sum_{C \in \mathcal{C}_s} \prod_{\{i,j\} \subseteq C} \left(1 - x_{ij}\right).
+\end{equation}
+The first sum counts $K_r$ subgraphs of $G$, and the second counts $K_s$ subgraphs of $\overline{G}$. Thus $M(x) = 0$ if and only if $x$ encodes a valid witness for $R(r,s) > n$. The corresponding discrete optimization problem is
+\begin{equation}\label{eq:opt-problem}
+    \min_{x \in \{0,1\}^{\binom{n}{2}}} M(x).
+\end{equation}
+This formulation already performs one relaxation of the satisfiability view: hard clauses become a smooth multilinear penalty on binary variables. The next step is to relax integrality:
 \begin{equation}\label{eq:relaxed-problem}
     \min_{x \in [0,1]^m} M(x).
 \end{equation}
 
-Under this relaxation, each variable $x_{ij}$ can be interpreted as the probability that edge $(i,j)$ receives color $1$ under an independent Bernoulli coloring model. The objective $M(x)$ is then the expected number of forbidden monochromatic cliques, since each product term is exactly the probability that a given clique is monochromatic in one of the two colors. This probabilistic view preserves a direct connection to the discrete search problem while exposing a continuous domain on which first-order methods can operate.
+Under this relaxation, each variable $x_{ij}$ can be interpreted as the probability that edge $\{i,j\}$ is present in $G$, under an independent Bernoulli edge model. The objective $M(x)$ is then the expected number of $K_r$ subgraphs and $s$-element independent sets in the resulting random graph, since each product term gives the probability of the corresponding subgraph being fully present or fully absent. This probabilistic view preserves a direct connection to the discrete search problem while exposing a continuous domain on which first-order methods can operate.
 
 Equivalently, the relaxed problem can be written as
 
@@ -256,9 +235,9 @@ Equivalently, the relaxed problem can be written as
     \text{s.t.} \quad &x \in [0,1]^m.
 \end{align}
 
-The objective is a multilinear polynomial of degree $\binom{\max(r,s)}{2}$ in $m=\binom{n}{2}$ variables, so gradients can be computed explicitly whenever clique enumeration is feasible. Although any final certificate must still be discrete, the continuous relaxation is useful because it exposes informative descent directions and allows the optimizer to exploit partial progress before a valid witness has fully polarized.
+The objective is a multilinear polynomial of degree $\binom{\max(r,s)}{2}$ in $m = \binom{n}{2}$ variables, so gradients can be computed explicitly whenever clique enumeration is feasible. Although any final certificate must still be discrete, the continuous relaxation is useful because it exposes informative descent directions and allows the optimizer to exploit partial progress before a valid witness has fully polarized.
 
-This relaxation is natural from two perspectives. In extremal combinatorics, it is the probabilistic variant of the coloring problem. In discrete optimization, it is the passage from SAT-style hard constraints to a pseudo-Boolean objective and then to an integrality relaxation. The important caveat is that fractional progress is useful only insofar as it can be extracted into a binary coloring and verified directly.
+This relaxation is natural from two perspectives. In extremal combinatorics, it is the probabilistic-method relaxation of the discrete construction problem. In discrete optimization, it is the passage from SAT-style hard constraints to a pseudo-Boolean objective and then to an integrality relaxation. The important caveat is that fractional progress is useful only insofar as it can be rounded to a binary witness and verified directly.
 
 
 \subsection{Clique-Wise Surrogate Losses}\label{sec:surrogate}
