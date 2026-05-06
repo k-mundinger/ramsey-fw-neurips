@@ -219,7 +219,7 @@ The first sum counts $K_r$ subgraphs of $G$, and the second counts $K_s$ subgrap
 \begin{equation}\label{eq:opt-problem}
     \min_{x \in \{0,1\}^{\binom{n}{2}}} M(x).
 \end{equation}
-This formulation replaces the satisfiability view by a smooth multilinear penalty on binary variables. The next step is to relax integrality.
+This exact reformulation replaces the satisfiability view by a multilinear pseudo-Boolean violation objective on binary variables. The next step is to relax integrality.
 
 \subsection{Probabilistic Continuous Relaxation}\label{sec:probabilistic-relaxation}
 
@@ -241,34 +241,32 @@ Equivalently, the relaxed problem can be written as
 
 The objective is a multilinear polynomial of degree $\binom{\max(r,s)}{2}$ in $m = \binom{n}{2}$ variables, so gradients can be computed explicitly whenever clique enumeration is feasible. Although any final certificate must still be discrete, the continuous relaxation is useful because it exposes informative descent directions and allows the optimizer to exploit partial progress before a valid witness has fully polarized.
 
+The raw objective has the structural form emphasized in the introduction. Each clique term has nonnegative mixed partial derivatives, so $M$ is supermodular on the hypercube. The $K_r$ terms are increasing in the edge variables, while the independent-set terms are decreasing; their sum is therefore non-monotone.
+
 This relaxation is natural from two perspectives. In extremal combinatorics, it is the probabilistic-method relaxation of the discrete construction problem. In discrete optimization, it is the passage from SAT-style hard constraints to a pseudo-Boolean objective and then to an integrality relaxation. The important caveat is that fractional progress is useful only insofar as it can be rounded to a binary witness and verified directly.
 
 
 \subsection{Clique-Wise Surrogate Losses}\label{sec:surrogate}
 
-The raw expected-count objective $M$ is conceptually natural, but in practice it provides a weak optimization signal. Because each clique contribution is a high-order product of numbers in $[0,1]$, the raw objective often yields very small gradients even when a candidate solution is close to creating a forbidden monochromatic clique. As a result, a first-order method can spend many iterations reducing already-safe regions of the graph while paying insufficient attention to the most dangerous near-violations.
+The raw expected-count objective $M$ is conceptually natural and is the objective used for rounding and certification, but in practice it can provide a weak optimization signal. Because each clique contribution is a high-order product of numbers in $[0,1]$, the raw objective often yields very small gradients even when a candidate solution is close to creating a forbidden monochromatic clique. As a result, a first-order method can spend many iterations reducing already-safe regions of the graph while paying insufficient attention to the most dangerous near-violations.
 
-To make this issue explicit, consider the raw expected-count objective
-\begin{equation}\label{eq:linear_expectation}
-    M(x)
-    =
-    \sum_{C \in \mathcal{C}_r} \prod_{\{i,j\} \subseteq C} x_{ij}
-    +
-    \sum_{C \in \mathcal{C}_s} \prod_{\{i,j\} \subseteq C} (1 - x_{ij}).
-\end{equation}
-When a clique differs from a monochromatic one by only a small number of edges, the corresponding product term can still be numerically tiny, especially for larger clique sizes. The optimizer is then encouraged to distribute mass diffusely rather than to eliminate the specific substructures most likely to invalidate a witness.
+For a clique $C \in \mathcal{C}_r$ and an $s$-vertex set $D \in \mathcal{C}_s$, write
+\[
+    p_r(C;x) = \prod_{\{i,j\} \subseteq C} x_{ij},
+    \qquad
+    p_s(D;x) = \prod_{\{i,j\} \subseteq D} (1 - x_{ij})
+\]
+for the corresponding monochromatic probabilities under the independent-edge interpretation. When one of these sets differs from a forbidden monochromatic clique by only a small number of edges, the product can still be numerically tiny, especially for larger clique sizes. The optimizer is then encouraged to distribute mass diffusely rather than to eliminate the specific substructures most likely to invalidate a witness.
 
 We therefore optimize a barrier-style surrogate that penalizes each potentially monochromatic clique individually:
 \begin{equation}\label{eq:log_barrier}
     L(x)
     =
-    -\sum_{C \in \mathcal{C}_r}
-    \log\left(1 - \prod_{\{i,j\} \subseteq C} x_{ij}\right)
+    -\sum_{C \in \mathcal{C}_r} \log\left(1 - p_r(C;x)\right)
     -
-    \sum_{C \in \mathcal{C}_s}
-    \log\left(1 - \prod_{\{i,j\} \subseteq C} (1 - x_{ij})\right).
+    \sum_{D \in \mathcal{C}_s} \log\left(1 - p_s(D;x)\right).
 \end{equation}
-The logarithmic transformation changes the geometry of the problem in a useful way. Each clique behaves like an individual soft constraint, and the penalty for a nearly monochromatic clique grows rapidly as its monochromatic probability approaches $1$. We emphasize that, despite the superficial resemblance, this is genuinely different from a classical interior-point log-barrier: a barrier method repels iterates from the boundary of the feasible set, whereas here it is the forbidden monochromatic subgraphs that are repelled. The values $0$ and $1$ on individual edges are not penalized at all; the optimizer is allowed, and in fact encouraged, to move toward discrete edge colorings, as long as no clique becomes fully monochromatic in the process.
+The surrogate changes only the search objective; rounding and certification below remain defined in terms of $M$. The logarithmic transformation changes the geometry of the problem in a useful way. Each clique behaves like an individual soft constraint, and the penalty for a nearly monochromatic clique grows rapidly as its monochromatic probability approaches $1$. We emphasize that, despite the superficial resemblance, this is genuinely different from a classical interior-point log-barrier: a barrier method repels iterates from the boundary of the feasible set, whereas here it is the forbidden monochromatic subgraphs that are repelled. The values $0$ and $1$ on individual edges are not penalized at all; the optimizer is allowed, and in fact encouraged, to move toward discrete edge colorings, as long as no clique becomes fully monochromatic in the process.
 
 \paragraph{Gradient clipping.}
 The logarithmic surrogate has an important implementation caveat: it is undefined when any clique is monochromatic with probability $1$. This can occur not only from numerical saturation, but also by design when the Frank-Wolfe search is combined with a discrete heuristic that snaps fractional edge probabilities to a binary coloring. In those cases we replace each monochromatic clique probability $p$ by $\min(p,1-\varepsilon)$ before evaluating $-\log(1-p)$, for a small $\varepsilon>0$. The forward objective is then finite and the largest per-clique penalty is controlled by $-\log \varepsilon$.
