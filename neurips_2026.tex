@@ -187,7 +187,13 @@ We structure the paper as follows. \cref{eq:no-monochromatic-cliques} turns Rams
 \fi
 
 
-\section{Problem}\label{sec:problem}
+\section{The Problem: Constructing Ramsey Graphs}\label{sec:problem}
+
+An $n$-vertex graph $G$ is an $(r,s,n)$-Ramsey graph if it contains no clique of size $r$ and its complement $\overline{G}$ contains no clique of size $s$, equivalently $\omega(G) < r$ and $\alpha(G) < s$. The Ramsey number $R(r,s)$ is the least $n$ for which no such graph exists; proving $R(r,s) > n$ amounts to exhibiting a single $(r,s,n)$-Ramsey graph. Verifying such a certificate reduces to clique detection, which is NP-complete in general but polynomial in $n$ for fixed $r,s$ and well-handled in practice by solvers such as Cliquer~\cite{niskanen2003cliquer}. The bottleneck is search: even after quotienting by isomorphism, the space of candidate graphs remains exponential in $n$~\cite{mckay2014nauty}.
+
+% Draft S2 additions go here; existing optimization-oriented prose below is
+% Konrad's draft material and will be relocated or integrated after the
+% section structure is settled.
 
 \subsection{Ramsey Search as Discrete Optimization}
 
@@ -217,7 +223,7 @@ This formulation already performs one relaxation of the satisfiability view: har
 
 
 
-\section{Method}\label{sec:method}
+\section{The Method: Continuous Frank-Wolfe Search}\label{sec:method}
 
 We solve the relaxed problem with a Frank-Wolfe scheme. The order of presentation in this section follows the order in which the design choices accumulate. We first introduce the continuous relaxation and note the probabilistic interpretation it inherits (Section~\ref{sec:probabilistic-relaxation}). We then discuss the loss the optimizer actually operates on, because the raw multilinear objective gives a poor first-order signal and motivates a clique-wise log-barrier surrogate (Section~\ref{sec:surrogate}). With the loss fixed, we describe the Frank-Wolfe update and its closed-form linear minimization oracle (Section~\ref{sec:fw-updates}), the stochastic clique batching that makes the method scalable (Section~\ref{sec:batching}), and the deterministic conditional-expectation rounding that turns relaxed iterates into certified discrete witnesses (Section~\ref{sec:extraction}).
 
