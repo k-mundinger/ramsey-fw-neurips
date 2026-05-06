@@ -155,6 +155,13 @@ We apply the continuous-relaxation approach to Ramsey lower-bound search. The Ra
 \end{enumerate}
 
 \paragraph{Related Literature.}
+Frank-Wolfe methods are projection-free first-order algorithms for smooth optimization over convex sets with efficient linear minimization oracles~\cite{frank1956algorithm,jaggi2013revisiting,braun2022conditional}. Variants such as away-step and pairwise Frank-Wolfe modify the active-set dynamics and can obtain stronger convergence guarantees under additional convexity and geometric assumptions~\cite{lacostejulien2015global}. Our use is closest to the basic nonconvex conditional-gradient viewpoint: over the edge hypercube, the linear oracle is separable and returns a binary graph, while generic theory supplies stationarity or Frank-Wolfe-gap guarantees rather than approximation or feasibility guarantees.
+
+Continuous Greedy is the canonical multilinear-extension method for submodular maximization. Vondr{\'a}k introduced the continuous-greedy framework for submodular welfare~\cite{vondrak2008optimal}, and Calinescu, Chekuri, P{\'a}l, and Vondr{\'a}k developed the multilinear-extension approach for monotone submodular maximization under matroid constraints, including rounding with a $(1-1/e)$ guarantee~\cite{calinescu2011maximizing}. Pipage rounding and contention-resolution schemes are central fractional-to-integral tools in this line of work~\cite{ageev2004pipage,chekuri2011contention}; our extraction step is different, using conditional expectations over the independent-edge model on the full hypercube. The connection is therefore methodological rather than theorem-level: our pipeline shares the multilinear relaxation, linear-oracle geometry, and fractional-to-discrete extraction motif, but the raw Ramsey objective is a non-monotone supermodular violation-minimization objective rather than a monotone submodular utility.
+
+Non-monotone submodular maximization has its own algorithmic literature, including randomized and DoubleGreedy-style algorithms for unconstrained nonnegative objectives~\cite{feige2011maximizing,buchbinder2015tight}. The continuous-greedy-type methods are more directly adjacent after sign-flipping the Ramsey violation objective. Feldman, Naor, and Schwartz introduced a unified continuous-greedy framework for nonnegative non-monotone submodular maximization over down-monotone polytopes~\cite{feldman2011unified}. Bian et al.\ study continuous submodular and DR-submodular maximization; their monotone result has a Frank-Wolfe/Continuous-Greedy flavor, while their non-monotone box-constrained method is DoubleGreedy-style and coordinatewise rather than linear-oracle-driven~\cite{bian2017guaranteed}. Mokhtari, Hassani, and Karbasi develop stochastic conditional-gradient methods, including non-monotone stochastic continuous greedy for DR-submodular maximization~\cite{mokhtari2020stochastic}. These works identify relevant baselines once the violation objective is sign-flipped and shifted to be nonnegative, whereas we optimize the raw violation objective with vanilla Frank-Wolfe over the full edge hypercube, combining fractional iterates and binary oracle outputs with conditional-expectations rounding and exhaustive verification.
+
+We defer the detailed Ramsey chronology, bound table, and comparison with prior constructive methods to \cref{sec:problem}.
 
 % -----------------------------------------------------------------------
 % Draft material below: Konrad's original introduction, kept for reference
@@ -179,7 +186,7 @@ We structure the paper as follows. \cref{eq:no-monochromatic-cliques} turns Rams
 \end{itemize}
 
 
-\section{Problem}
+\section{Problem}\label{sec:problem}
 
 \subsection{Ramsey Search as Discrete Optimization}
 
