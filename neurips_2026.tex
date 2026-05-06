@@ -269,9 +269,9 @@ We therefore optimize a barrier-style surrogate that penalizes each potentially 
 The surrogate changes only the search objective; rounding and certification below remain defined in terms of $M$. The logarithmic transformation changes the geometry of the problem in a useful way. Each clique behaves like an individual soft constraint, and the penalty for a nearly monochromatic clique grows rapidly as its monochromatic probability approaches $1$. We emphasize that, despite the superficial resemblance, this is genuinely different from a classical interior-point log-barrier: a barrier method repels iterates from the boundary of the feasible set, whereas here it is the forbidden monochromatic subgraphs that are repelled. The values $0$ and $1$ on individual edges are not penalized at all; the optimizer is allowed, and in fact encouraged, to move toward discrete edge colorings, as long as no clique becomes fully monochromatic in the process.
 
 \paragraph{Gradient clipping.}
-The logarithmic surrogate has an important implementation caveat: it is undefined when any clique is monochromatic with probability $1$. This can occur not only from numerical saturation, but also by design when the Frank-Wolfe search is combined with a discrete heuristic that snaps fractional edge probabilities to a binary coloring. In those cases we replace each monochromatic clique probability $p$ by $\min(p,1-\varepsilon)$ before evaluating $-\log(1-p)$, for a small $\varepsilon>0$. The forward objective is then finite and the largest per-clique penalty is controlled by $-\log \varepsilon$.
+The logarithmic surrogate has an important implementation caveat: it is undefined when any clique is monochromatic with probability $1$. This can occur not only from numerical saturation, but also by design when the Frank-Wolfe search is combined with a discrete heuristic that snaps fractional edge probabilities to a binary coloring. In those cases we replace each monochromatic clique probability $p$ by $\min(p,1-\varepsilon)$ before evaluating $-\log(1-p)$, for a small $\varepsilon>0$. The forward objective is then finite, and the largest per-clique penalty is controlled by $-\log \varepsilon$.
 
-There remains a choice about the gradient through this clipping operation. With the ordinary clamp, cliques whose probability exceeds $1-\varepsilon$ have zero derivative with respect to $p$; this is numerically stable, but it also removes the optimization signal from precisely the saturated constraints that caused the problem. We therefore also consider a straight-through variant: the forward pass uses the clipped value, while the backward pass treats the clipping operation as the identity. This preserves the descent direction of the original product term and caps the scalar log factor at $1/\varepsilon$, at the cost of using a biased gradient estimator rather than the exact derivative of the clipped objective. We treat this as an optimization heuristic, and report the clipping threshold and gradient convention together with the loss function in experiments.
+There remains a choice about the gradient through this clipping operation. With the ordinary clamp, Frank-Wolfe is applied to the clipped objective, and cliques whose probability exceeds $1-\varepsilon$ have zero derivative with respect to $p$. This is numerically stable, but it also removes the optimization signal from precisely the saturated constraints that caused the problem. We therefore also consider a straight-through variant: the forward pass uses the clipped value, while the backward pass treats the clipping operation as the identity. This preserves the descent direction of the original product term and caps the scalar log factor at $1/\varepsilon$, at the cost of using a biased gradient estimator rather than the exact derivative of the clipped objective. We treat this variant as an optimization heuristic, and report the clipping threshold and gradient convention together with the loss function in experiments.
 
 \begin{figure}[h]
     \centering
@@ -284,15 +284,15 @@ We treat the choice of surrogate as a design decision rather than a theorem-leve
 
 \subsection{Frank-Wolfe Updates}\label{sec:fw-updates}
 
-We optimize the relaxed objective over the hypercube $[0,1]^m$ with a Frank-Wolfe type method \cite{frank1956algorithm,braun2022conditional}. At iteration $t$, given a current iterate $x_t$, the linear minimization subproblem is
+Let $F$ denote the differentiable search loss supplied to the optimizer, for example the raw objective $M$, the log-barrier surrogate $L$, or a clipped variant of $L$. We optimize $F$ over the hypercube $[0,1]^m$ with a Frank-Wolfe type method \cite{frank1956algorithm,braun2022conditional}. At iteration $t$, given a current iterate $x_t$, the linear minimization subproblem is
 \begin{equation}
-    s_t \in \arg\min_{s \in [0,1]^m} \langle \nabla L(x_t), s \rangle.
+    s_t \in \arg\min_{s \in [0,1]^m} \langle \nabla F(x_t), s \rangle.
 \end{equation}
 Because the feasible region is a hypercube, this oracle has a simple closed form:
 \begin{equation}
     (s_t)_{ij} =
     \begin{cases}
-        0, & \text{if } \frac{\partial L(x_t)}{\partial x_{ij}} > 0, \\
+        0, & \text{if } \frac{\partial F(x_t)}{\partial x_{ij}} > 0, \\
         1, & \text{otherwise.}
     \end{cases}
 \end{equation}
@@ -305,7 +305,7 @@ where $\gamma_t \in [0,1]$ is a step size.
 
 This choice is attractive for two reasons. First, each update is projection-free and inexpensive once the gradient has been estimated. Second, the linear minimization oracle always returns a vertex of the hypercube, so the iterates are repeatedly pulled toward discrete colorings rather than remaining in the interior. In our setting this bias toward extreme points is desirable because the final goal is a binary witness, not merely a low-value continuous relaxation.
 
-All experiments reported below use this vanilla Frank-Wolfe update with a standard diminishing step-size schedule. We also implemented a pairwise Frank-Wolfe variant, which moves probability mass directly from an ``away'' atom $a_t \in \arg\max_{a \in \mathcal{A}(x_t)} \langle \nabla L(x_t), a \rangle$ to the Frank-Wolfe atom $s_t$ via $x_{t+1} = x_t + \gamma_t (s_t - a_t)$, with the step size capped by the current weight of $a_t$ to keep the iterate feasible. On small instances the pairwise variant converged noticeably faster than vanilla Frank-Wolfe, but on $R(5,5)$ at $n=42$ we did not obtain reliable convergence with it at the budgets we tested; we therefore report vanilla Frank-Wolfe as our main method and leave a careful study of pairwise and away-step variants at this scale to future work.
+All experiments reported below use this vanilla Frank-Wolfe update with a standard diminishing step-size schedule. We also tested pairwise and away-step variants. They converged faster on some small instances, but did not produce reliable convergence for $R(5,5)$ at $n=42$ within the budgets we tested; we therefore report vanilla Frank-Wolfe as the main method and leave a careful study of active-set variants at this scale to future work.
 
 % Move to conclusion / extensions if we discuss multicolor Ramsey variants.
 % \paragraph{Remark (multicolor parameterization).}
