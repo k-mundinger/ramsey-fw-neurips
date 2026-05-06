@@ -209,15 +209,15 @@ We now specify the optimization pipeline used for Ramsey lower-bound constructio
 
 \subsection{Discrete Optimization Formulation}\label{sec:discrete-formulation}
 
-Index the $m = \binom{n}{2}$ edges and encode a candidate graph $G$ by a vector $x \in \{0,1\}^m$, where $x_{ij} = 1$ if and only if edge $\{i,j\}$ belongs to $G$. Let $\mathcal{C}_k$ denote the family of $k$-vertex subsets of the vertex set. The Ramsey constraints are captured by the pseudo-Boolean violation objective
+Let $m = \binom{n}{2}$. We encode a candidate $G$ by a vector $x \in \{0,1\}^m$ with $x_{ij} = 1$ if and only if edge $\{i,j\}$ belongs to $G$. Let $\mathcal{C}_k$ denote the family of $k$-vertex subsets of the vertex set. The Ramsey constraints are captured by the pseudo-Boolean violation objective
 \begin{equation}\label{eq:no-monochromatic-cliques}
     M(x) = \sum_{C \in \mathcal{C}_r} \prod_{\{i,j\} \subseteq C} x_{ij}
     \quad + \quad
     \sum_{C \in \mathcal{C}_s} \prod_{\{i,j\} \subseteq C} \left(1 - x_{ij}\right).
 \end{equation}
-The two sums count forbidden cliques in $G$ and in $\overline{G}$, respectively. Thus $M(x) = 0$ if and only if $x$ encodes a valid witness for $R(r,s) > n$. The corresponding discrete optimization problem is
+The first sum counts $K_r$ subgraphs in $G$; the second counts $K_s$ subgraphs in $\overline{G}$. Thus $M(x) = 0$ if and only if $x$ encodes a Ramsey witness for $R(r,s) > n$. The corresponding discrete optimization problem is
 \begin{equation}\label{eq:opt-problem}
-    \min_{x \in \{0,1\}^{\binom{n}{2}}} M(x).
+    \min_{x \in \{0,1\}^m} M(x).
 \end{equation}
 
 \subsection{Probabilistic Continuous Relaxation}\label{sec:probabilistic-relaxation}
@@ -229,7 +229,7 @@ Relaxing only the binary constraint in \cref{eq:opt-problem} gives
 
 Under this relaxation, each variable $x_{ij}$ can be interpreted as the probability that edge $\{i,j\}$ is present under an independent Bernoulli edge model. The value $M(x)$ is then the expected number of $K_r$ subgraphs and $s$-element independent sets, since each product term is the probability that the corresponding vertex set is fully present or fully absent.
 
-The objective is a multilinear polynomial of degree $\binom{\max(r,s)}{2}$ in $m = \binom{n}{2}$ variables, so gradients can be computed explicitly whenever the relevant vertex-set families can be enumerated. The relaxation exposes informative descent directions and allows the optimizer to exploit partial progress before an iterate has fully polarized.
+The objective is a multilinear polynomial of degree $\binom{\max(r,s)}{2}$ in $m$ variables, so gradients can be computed explicitly whenever the relevant vertex-set families can be enumerated. The relaxation exposes informative descent directions and lets the optimizer exploit partial progress before iterates reach a hypercube vertex.
 
 The polynomial $M$ is supermodular on the hypercube: each clique term has nonnegative mixed partial derivatives in the variables it contains. It is non-monotone, because the $K_r$ terms are increasing in the edge variables whereas the independent-set terms are decreasing.
 
@@ -254,7 +254,7 @@ We therefore optimize a barrier-style surrogate that penalizes each potentially 
     -
     \sum_{D \in \mathcal{C}_s} \log\left(1 - p_s(D;x)\right).
 \end{equation}
-The surrogate changes only the search objective. The logarithmic transformation treats each clique as an individual soft constraint, with a penalty that grows rapidly as its monochromatic probability approaches $1$. Despite the superficial resemblance, this is not a classical interior-point log-barrier: a barrier method repels iterates from the boundary of the feasible set, whereas here it is the forbidden monochromatic subgraphs that are repelled. The values $0$ and $1$ on individual edges are not penalized; the optimizer can move toward discrete edge colorings as long as no clique becomes fully monochromatic in the process.
+The surrogate changes only the search loss. The logarithmic transformation treats each clique as an individual soft constraint, with a penalty that grows rapidly as its monochromatic probability approaches $1$. Despite the superficial resemblance, this is not a classical interior-point log-barrier: a barrier method repels iterates from the boundary of the feasible set, whereas here it is the forbidden monochromatic subgraphs that are repelled. The values $0$ and $1$ on individual edges are not penalized; the optimizer can move toward discrete edge colorings as long as no clique becomes fully monochromatic in the process.
 
 \paragraph{Gradient clipping.}
 The logarithmic surrogate has an implementation caveat: it is undefined when any clique is monochromatic with probability $1$. This can occur through numerical saturation or by design when Frank-Wolfe is combined with a discrete heuristic that snaps fractional edge probabilities to a binary coloring. In those cases we replace each monochromatic clique probability $p$ by $\min(p,1-\varepsilon)$ before evaluating $-\log(1-p)$, for a small $\varepsilon>0$. The forward objective is then finite, and the largest per-clique penalty is controlled by $-\log \varepsilon$.
@@ -272,7 +272,7 @@ We treat the choice of surrogate as a design decision rather than a theorem-leve
 
 \subsection{Frank-Wolfe Updates}\label{sec:fw-updates}
 
-Let $F$ denote the differentiable search loss supplied to the optimizer, for example the raw objective $M$, the log-barrier surrogate $L$, or a clipped variant of $L$. We optimize $F$ over the hypercube $[0,1]^m$ with a Frank-Wolfe method \cite{frank1956algorithm,braun2022conditional}. At iteration $t$, given a current iterate $x_t$, the linear minimization subproblem is
+Let $F$ denote the differentiable search loss supplied to the optimizer, such as the raw violation count $M$, the log-barrier surrogate $L$, or a clipped variant of $L$. We optimize $F$ over the hypercube $[0,1]^m$ with a Frank-Wolfe method \cite{frank1956algorithm,braun2022conditional}. At iteration $t$, given a current iterate $x_t$, the linear minimization subproblem is
 \begin{equation}
     s_t \in \arg\min_{s \in [0,1]^m} \langle \nabla F(x_t), s \rangle.
 \end{equation}
@@ -305,7 +305,7 @@ The main computational bottleneck is enumerating the forbidden vertex sets. Even
 \[
 |\mathcal{C}_k| = \binom{n}{k},
 \]
-is far too large for exact evaluation at every Frank-Wolfe step. Since the search losses are sums of independent clique-wise penalties, the natural approximation is to replace these sums by mini-batch estimates.
+is far too large for exact evaluation at every Frank-Wolfe step. Since the search loss is a sum of independent clique-wise penalties, the natural approximation is to replace this sum by a mini-batch estimate.
 
 Let $\ell_r(C;x)$ and $\ell_s(D;x)$ denote the two per-clique contributions. For the barrier surrogate in \cref{eq:log_barrier},
 \[
@@ -327,17 +327,17 @@ In diagonal instances, both terms are indexed by the same family of vertex sets,
 
 \subsection{Extraction and Verification}\label{sec:extraction}
 
-Lower bounds are certified only after converting a candidate point to a binary coloring and verifying directly that no forbidden monochromatic cliques remain. In our implementation this conversion is deterministic and is performed by the method of conditional expectation applied to the raw violation objective $M$, regardless of which search loss $F$ produced the candidate. The guarantee is therefore a guarantee for $M$, not for the surrogate objective optimized by Frank-Wolfe.
+Lower bounds are certified only after converting a fractional candidate to a binary witness and verifying directly that no forbidden monochromatic cliques remain. In our implementation this conversion is deterministic and is performed by the method of conditional expectation applied to the raw violation count $M$, regardless of which search loss $F$ produced the candidate. The guarantee is therefore a guarantee for $M$, not for the surrogate loss optimized by Frank-Wolfe.
 
-Starting from a fractional candidate $x \in [0,1]^m$, we process edges one at a time in an arbitrary order. For the current undecided edge $e$, we evaluate $M$ conditioned on fixing $x_e=0$ and on fixing $x_e=1$, keeping the remaining undecided edges at their current fractional values, and permanently assign the value yielding the smaller conditional value. Because $M$ is multilinear, and therefore affine in each coordinate, we have
+Starting from a fractional candidate $x \in [0,1]^m$, we process edges one at a time in an arbitrary order. For the current undecided edge $e$, we evaluate $M$ conditioned on fixing $x_e=0$ and on fixing $x_e=1$, keeping the remaining undecided edges at their current fractional values, and permanently fix $x_e$ to the endpoint with the smaller conditional expectation of $M$. Because $M$ is multilinear, and therefore affine in each coordinate, we have
 \[
     M(x) \;=\; x_e\, M(x \mid x_e = 1) \;+\; (1-x_e)\, M(x \mid x_e = 0),
 \]
-so at least one of the two endpoints has value no larger than the current conditional expectation. Iterating this argument over all edges produces a binary coloring $\widehat{x} \in \{0,1\}^m$ with
+so at least one of the two endpoints has value no larger than the current conditional expectation. Iterating this argument over all edges produces a binary witness $\widehat{x} \in \{0,1\}^m$ with
 \[
-    M(\widehat{x}) \;\le\; M(x).
+    M(\widehat{x}) \;\leq\; M(x).
 \]
-Since $M(\widehat{x})$ is a nonnegative integer, any fractional point with $M(x) < 1$ is guaranteed to round to a valid Ramsey witness with $M(\widehat{x}) = 0$. This threshold is sufficient, not necessary: conditional-expectation rounding can still succeed from points with larger raw expected violation count, and the final certificate does not rely on the fractional objective value. We verify $\widehat{x}$ against the original Ramsey constraints by the clique-checking procedure described in \cref{sec:problem}.
+Since $M(\widehat{x})$ is a nonnegative integer, any fractional point with $M(x) < 1$ is guaranteed to round to a Ramsey witness with $M(\widehat{x}) = 0$. This threshold is sufficient, not necessary: conditional-expectation rounding can still succeed from points with larger raw expected violation count, and the final certificate does not rely on the fractional objective value. We verify $\widehat{x}$ against the original Ramsey constraints by the clique-checking procedure described in \cref{sec:problem}.
 
 \section{Results}
 
