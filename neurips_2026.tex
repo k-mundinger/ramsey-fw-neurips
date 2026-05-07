@@ -376,12 +376,12 @@ These results support the paper's central claim: Frank-Wolfe style continuous op
 
 \begin{table}[t]
   \centering
-  \small
-  \setlength{\tabcolsep}{7pt}
-  \renewcommand{\arraystretch}{1.2}
+  \normalsize
+  \setlength{\tabcolsep}{8pt}
+  \renewcommand{\arraystretch}{1.3}
   \definecolor{cellblue}{RGB}{198,226,239}
   \definecolor{cellyellow}{RGB}{255,242,102}
-  \definecolor{cellred}{RGB}{255,102,102}
+  \definecolor{cellorange}{RGB}{255,165,0}
   \definecolor{cellgray}{RGB}{235,235,235}
   \caption{Results obtained through our method. Blue cells: exact Ramsey number known and matched by our witness. Yellow cells: exact value unknown, our witness matches the current best lower bound. Red cells: our witness falls short of the best lower bound known in the literature. Reference values from the current small-Ramsey survey and graph database~\cite{radziszowski2026smallramsey,mckayramseydata}.}
   \label{tab:small-ramsey-grid}
@@ -389,7 +389,7 @@ These results support the paper's central claim: Frank-Wolfe style continuous op
     $r \backslash s$ & 3 & 4 & 5 & 6 & 7 & 8 \\
     \hline
     3 & \cellcolor{cellblue}6 & \cellcolor{cellblue}9 & \cellcolor{cellblue}14 & \cellcolor{cellblue}18 & \cellcolor{cellblue}23 & \cellcolor{cellblue}28 \\
-    4 &  & \cellcolor{cellblue}18 & \cellcolor{cellblue}25 & \cellcolor{cellred}34 & \cellcolor{cellgray}-- & \cellcolor{cellgray}-- \\
+    4 &  & \cellcolor{cellblue}18 & \cellcolor{cellblue}25 & \cellcolor{cellorange}34 & \cellcolor{cellgray}-- & \cellcolor{cellgray}-- \\
     5 &  &  & \cellcolor{cellyellow}43 & \cellcolor{cellgray}-- & \cellcolor{cellgray}-- & \cellcolor{cellgray}-- \\
   \end{tabular}
 \end{table}
