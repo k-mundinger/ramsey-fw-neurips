@@ -3,7 +3,9 @@
 \setlength{\LTright}{0pt}
 \setlength{\tabcolsep}{3pt}
 \scriptsize
-\begin{longtable}{r >{\fontsize{4}{5}\selectfont}l r}
+\let\unscaledtexttt\texttt
+\renewcommand{\texttt}[1]{\resizebox{\linewidth}{!}{\unscaledtexttt{#1}}}
+\begin{xltabular}{\textwidth}{r X r}
     \caption{Detailed results for $R(5,5)$.}\label{tab:results}\\
     \toprule
     idx & graph6 string & occ. \\
@@ -101,6 +103,6 @@
         78 & \texttt{i]Zjt\textasciitilde{}sJnpk\_LCLDK?SnhORtBLqF\textbackslash{}[\textasciicircum{}KWX\textasciitilde{}o\_yYQAVjzp\}cfDjTahxepU\textbackslash{}xCwjUp\{vZK@tBzKVfcFEnF`sxA\}BcTxkDnKmRojFUczx?VM`HZnwAbWFuFhWPNBo|EkxMDVHKRjE]PqCYxDVZP?} & 1 \\
         79 & \texttt{i]IAbjilXyXwEqcAqYnVM\textasciicircum{}MQcjHmAKAzdPrPH\textbackslash{}LjSsjnqlkSo|sOiaXP`GR\textasciitilde{}yyMJa\_Kq\{EszZR\textbackslash{}fHW\textasciicircum{}PGCbgMnXTjWqq]zUnm]@Rxcf@sy[eiiV@Zvhgg`rTRsjWDoD[UR|xD\textbackslash{}LgOWPHfxmBg} & 1 \\
         80 & \texttt{i\_]oweIJag|\textasciicircum{}aYPIcJNf\textasciitilde{}T|jUsePYAH\}H\textasciitilde{}aaiyrbjcUVSLX\{sxsnSYwTZKlbzH`wmRlsIuxOUuGSjyjssus@tlkQYZ\_yfPlyPM]QQiyo[gY`\textasciitilde{}G`sciLX[mkM`\textasciicircum{}Z@eQkRJUwpgZi\textbackslash{}Ga\textbackslash{}ZAkhCg} & 1 \\
-\end{longtable}
+\end{xltabular}
 \endgroup
     

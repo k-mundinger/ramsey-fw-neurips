@@ -54,7 +54,9 @@
 \usepackage{amsmath}        % for mathematical environments
 \usepackage{array}          % column-specific table formatting
 \usepackage{booktabs}       % professional-quality tables
+\usepackage{graphicx}       % resize oversized table entries
 \usepackage{longtable}      % multi-page tables
+\usepackage{xltabular}      % longtable with text-width columns
 \usepackage{amsfonts}       % blackboard math symbols
 \usepackage{nicefrac}       % compact symbols for 1/2, etc.
 \usepackage{microtype}      % microtypography
@@ -236,7 +238,7 @@ The objective is a multilinear polynomial of degree at most $\binom{\max(r,s)}{2
 
 The raw expected-count objective $M$ is used for rounding and certification, but in practice it can provide a weak optimization signal. Because each clique contribution is a high-order product of numbers in $[0,1]$, the raw objective often yields very small gradients even when a candidate solution is close to creating a forbidden monochromatic clique. A first-order method can then spend many iterations reducing already-safe regions of the graph while paying insufficient attention to the most dangerous near-violations.
 
-For a clique $C \in \mathcal{C}_r$ and an $s$-vertex set $D \in \mathcal{C}_s$, write
+For a $r$-clique $C \in \mathcal{C}_r$ and an $s$-vertex set $D \in \mathcal{C}_s$, write
 \[
     p_r(C;x) = \prod_{\{i,j\} \subseteq C} x_{ij},
     \qquad
