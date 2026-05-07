@@ -2,14 +2,14 @@
 \setlength{\LTleft}{0pt}
 \setlength{\LTright}{0pt}
 \setlength{\tabcolsep}{3pt}
-\scriptsize
-% \texttt{...} is unbreakable; we scale each string to the column width.
-% Use an explicit-width \texttt{p}{...} column: inside it, \linewidth equals
-% the column width. An \texttt{X} column often leaves \linewidth = \textwidth,
-% so \resizebox{\linewidth}{!}{...} scales to the full page and overlaps \texttt{occ.}
+\footnotesize
+% \texttt{...} is unbreakable; scale each string down to the middle column only.
+% Use \texttt{X}: it spans all horizontal space between the two \texttt{r} columns,
+% so the table fills \texttt{\textwidth}. Inside an \texttt{X} cell, \texttt{\hsize}
+% is that column width (unlike \texttt{\linewidth}, which can still be \texttt{\textwidth} here).
 \let\unscaledtexttt\texttt
-\renewcommand{\texttt}[1]{\resizebox{\linewidth}{!}{\unscaledtexttt{#1}}}
-\begin{xltabular}{\textwidth}{r >{\raggedright\arraybackslash}p{\dimexpr\textwidth-5.2cm\relax} r}
+\renewcommand{\texttt}[1]{\resizebox{\hsize}{!}{\unscaledtexttt{#1}}}
+\begin{xltabular}{\textwidth}{@{} r >{\raggedright\arraybackslash}X r @{}}
     \caption{Detailed results for $R(5,5)$.}\label{tab:results}\\
     \toprule
     idx & graph6 string & occ. \\
