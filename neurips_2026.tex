@@ -119,9 +119,9 @@
 
 
 \begin{abstract}
-    Establishing Ramsey number lower bounds constitutes a well-studied class of hard combinatorial feasibility problems. Known lower-bound witnesses have accumulated over decades through problem-specific discrete heuristics, with several key values remaining out of reach for generic methods. We replace direct combinatorial search by continuous relaxation followed by exact verification. Casting the construction problem as minimization of a pseudo-Boolean polynomial violation count turns satisfiability into optimization; relaxing the binary constraints to the unit hypercube then yields a smooth multilinear objective.
-    
-    Frank-Wolfe performs surprisingly well on this relaxation: its linear minimization oracle over the hypercube returns binary vertices, driving reliable progress despite the objective being non-monotone supermodular. A conditional-expectations rounding converts the fractional solution to a binary candidate without increasing the violation count.
+    Establishing Ramsey number lower bounds constitutes a well-studied class of hard combinatorial feasibility problems. Known lower-bound witnesses have accumulated over decades through problem-specific discrete heuristics, with several key values remaining out of reach for generic methods. We replace direct graph-space search by continuous optimization on a hypercube relaxation, with binary graph structure retained through the oracle, rounding, and verification. Casting the construction problem as minimization of a pseudo-Boolean polynomial violation count turns satisfiability into optimization; relaxing the binary constraints to the unit hypercube then yields a smooth multilinear objective.
+
+    Frank-Wolfe performs surprisingly well on this relaxation, even though the objective is non-monotone supermodular and only stationarity guarantees apply. At each step its hypercube linear minimization oracle returns a binary vertex, anchoring iterates to concrete candidates. A conditional-expectations rounding converts the fractional iterate to a binary candidate without increasing the violation count.
 
     This pipeline recovers a significant portion of the known lower-bound table, most notably finding $42$-vertex graphs certifying $R(5,5) \geq 43$. Recent LLM-driven evolutionary search using AlphaEvolve (Nagda et al., 2026) reports new off-diagonal lower bounds but does not report this long-standing benchmark.
 \end{abstract}
