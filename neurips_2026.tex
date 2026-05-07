@@ -130,18 +130,7 @@
 
 \section{Introduction}
 
-Hard combinatorial feasibility problems can often be reformulated as smooth optimization:
-moving constraints into the objective as penalty terms and relaxing binary variables to the
-unit hypercube yields a differentiable problem accessible to first-order methods. For structured
-objectives this approach has tight theory: Continuous Greedy, for example, attains a $(1-1/e)$
-approximation for monotone submodular maximization under matroid constraints by linear
-optimization over the feasible polytope~\cite{vondrak2008optimal,calinescu2011maximizing}.
-No comparable $(1-1/e)$-type guarantee is known in the complementary regime of non-monotone supermodular objectives. Generic
-nonconvex Frank-Wolfe~\cite{braun2022conditional} supplies only stationarity guarantees, but on
-hypercube relaxations its linear oracle still returns combinatorial vertices. The question is
-whether this geometry can help produce certifiable discrete witnesses. Ramsey lower-bound search
-is a natural test case: it is well studied, has a long record of specialized constructive
-methods, and every candidate graph can be checked exactly.
+Hard combinatorial feasibility problems can often be reformulated as smooth optimization: penalize the violations in the objective and relax binary variables to the unit hypercube, yielding a differentiable problem accessible to first-order methods. For structured objective classes this yields tight theory --- Continuous Greedy, for example, attains a $(1-1/e)$ approximation for monotone submodular maximization under matroid constraints by linear optimization over the feasible polytope~\cite{vondrak2008optimal,calinescu2011maximizing}. For non-monotone supermodular objectives no comparable $(1-1/e)$-type guarantee is known, and the underlying combinatorial problems are typically NP-hard, so continuous reformulation does not rescue global optimality. The relevant question is therefore empirical: do first-order methods find useful discrete witnesses in practice? Generic nonconvex Frank-Wolfe~\cite{braun2022conditional} gives only stationarity guarantees, so no theorem-level argument forces it to. We use it as a search heuristic, motivated separately by an algorithmic property: on the hypercube its linear minimization oracle returns a binary vertex at every step, anchoring each iterate to a concrete candidate discrete witness. Ramsey lower-bound search is a natural test case: it is well studied, has a long record of specialized constructive methods, and every candidate graph can be checked exactly.
 
 The Ramsey number $R(r,s)$ is the critical graph order at which every graph must contain either a clique of size $r$ or an independent set of size $s$. Certifying $R(r,s) > n$ requires producing a graph on $n$ vertices with clique number strictly less than $r$ and independence number strictly less than $s$. Several key values have resisted decades of effort; for example, the best current bounds for $R(5,5)$ are $43 \leq R(5,5) \leq 46$. Prior constructive lower-bound approaches, including local search heuristics such as simulated annealing and tabu search, extensions of known Ramsey graphs, constructions restricted to algebraic families such as circulant or Cayley graphs, and recent LLM-generated search programs, have largely operated in discrete search spaces.
 
