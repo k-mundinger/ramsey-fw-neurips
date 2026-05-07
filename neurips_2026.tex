@@ -231,7 +231,13 @@ Relaxing only the binary constraint in \cref{eq:opt-problem} gives
 
 Under this relaxation, each variable $x_{ij}$ can be interpreted as the probability that edge $\{i,j\}$ is present under an independent Bernoulli edge model. The value $M(x)$ is then the expected number of $K_r$ subgraphs and $s$-element independent sets, since each product term is the probability that the corresponding vertex set is fully present or fully absent.
 
-The objective is a multilinear polynomial of degree at most $\binom{\max(r,s)}{2}$ in $m$ variables, with gradients computable whenever the relevant vertex-set families can be enumerated. It is supermodular on the hypercube --- each clique term has nonnegative mixed partial derivatives in the variables it contains --- but non-monotone: the $K_r$ terms are increasing in the edge variables whereas the independent-set terms are decreasing.
+The objective is a multilinear polynomial of degree at most $\binom{\max(r,s)}{2}$ in $m$ variables, with gradients computable whenever the relevant vertex-set families can be enumerated. It is supermodular on the hypercube, as each clique term has nonnegative mixed partial derivatives in the variables it contains, but non-monotone: the $K_r$ terms are increasing in the edge variables whereas the independent-set terms are decreasing. Although the relaxation is nonconvex, it is not loose in the usual integrality-gap sense. Since any multilinear function is affine in each coordinate separately, minimizing one coordinate while fixing all others always admits an endpoint minimizer; repeating this coordinate by coordinate shows that
+\[
+    \min_{x\in[0,1]^m} M(x)
+    =
+    \min_{x\in\{0,1\}^m} M(x).
+\]
+The relaxation therefore preserves the global optimum of the raw violation objective; the difficulty is finding useful points, not a mismatch between fractional and integral optima.
 
 
 \subsection{Clique-Wise Surrogate Losses}\label{sec:surrogate}
@@ -292,6 +298,8 @@ The iterate is then updated by
 where $\gamma_t \in [0,1]$ is a step size.
 
 This update is projection-free and inexpensive once the gradient has been estimated. The oracle returns a vertex of the hypercube at each step, so when initialized at a hypercube vertex (or a convex combination of vertices) every iterate is a convex combination of explicit binary colorings rather than the result of a projection back to the feasible set.
+
+For the exact-gradient version on the smooth raw objective $M$, this update also falls under standard nonconvex Frank-Wolfe theory: under the usual smoothness and step-size assumptions, the minimum Frank-Wolfe gap among the first $T$ iterates decays as $O(T^{-1/2})$ \cite{lacostejulien2016convergence,braun2022conditional}. This is only a stationarity guarantee, not a guarantee of finding a Ramsey witness, and our reported pipeline also uses surrogate losses and stochastic clique batches. Its role is therefore to position the update as a principled projection-free baseline; successful lower-bound certificates still come from conditional-expectation extraction followed by exact verification.
 
 All experiments reported below use this vanilla Frank-Wolfe update with a standard diminishing step-size schedule. Pairwise and away-step variants are natural active-set baselines, but a careful comparison at this scale is left to future work.
 
@@ -387,55 +395,6 @@ These results support the paper's central claim: Frank-Wolfe style continuous op
     5 &  &  & \cellcolor{cellyellow}43 & \cellcolor{cellgray}-- & \cellcolor{cellgray}-- & \cellcolor{cellgray}-- \\
   \end{tabular}
 \end{table}
-
-\section{Theory}
-
-\subsection{Guarantees for the Raw Multilinear Objective}
-
-
-
-The relaxed problem in \cref{eq:relaxed-problem} is nonconvex, so we should not expect global convergence guarantees from first-order optimization alone. Nevertheless, the raw multilinear objective has several useful structural properties that make the relaxation meaningful for certificate search.
-
-\paragraph{No integrality gap.}
-The relaxation introduces no integrality gap for the raw objective $M$. More generally, let $F:[0,1]^m\to\mathbb{R}$ be any multilinear function. Since $F$ is affine in each coordinate separately, fixing all other coordinates and minimizing over one coordinate always admits an endpoint minimizer. Repeating this argument coordinate by coordinate gives
-\[
-    \min_{x\in[0,1]^m} F(x)
-    =
-    \min_{x\in\{0,1\}^m} F(x).
-\]
-Thus the continuous relaxation of $M$ is exact in the global-optimum sense: any fractional global optimum can be converted to a binary global optimum without increasing the expected number of violations. This does not make the optimization problem easy, but it rules out the usual failure mode where the relaxation is intrinsically too weak.
-
-\paragraph{Conditional-expectation extraction.}
-The same coordinate-wise multilinearity gives a deterministic rounding guarantee. For any fractional point $x\in[0,1]^m$, process the edges in an arbitrary order. When edge $e$ is considered, compare the value of $M$ after fixing $x_e=0$ with the value after fixing $x_e=1$, keeping all unprocessed edges at their current fractional values, and choose the better endpoint. Because $M$ is affine in $x_e$,
-\[
-    M(x)
-    =
-    x_e M(x\mid x_e=1)
-    +
-    (1-x_e) M(x\mid x_e=0),
-\]
-so at least one endpoint has value no larger than the current conditional expectation. Iterating over all edges produces a binary coloring $\widehat{x}$ satisfying
-\[
-    M(\widehat{x}) \le M(x).
-\]
-Since $M(\widehat{x})$ is a nonnegative integer, any relaxed point with $M(x)<1$ rounds to a valid Ramsey witness with $M(\widehat{x})=0$.
-
-\paragraph{Frank-Wolfe stationarity.}
-For exact-gradient optimization of a smooth objective over a compact convex domain, nonconvex Frank-Wolfe has a standard convergence guarantee in terms of the Frank-Wolfe gap \cite{lacostejulien2016convergence,braun2022conditional}. In the hypercube formulation for the raw objective, this gap is
-\[
-    g_M(x)
-    =
-    \max_{s\in[0,1]^m}
-    \langle x-s,\nabla M(x)\rangle .
-\]
-Under standard step-size rules, exact Frank-Wolfe guarantees
-\[
-    \min_{0\leq t<T} g_M(x_t) = O(T^{-1/2})
-\]
-for the smooth polynomial objective $M$. This is a convergence-to-stationarity statement, not a guarantee of finding a global Ramsey witness. Its role here is more modest: it provides a principled continuous optimization baseline, while the certificate guarantee above explains what is sufficient for successful rounding.
-
-\paragraph{Relation to continuous greedy.}
-The method is mechanically related to continuous-greedy algorithms for submodular maximization, which also optimize multilinear extensions through repeated linear optimization over a relaxation polytope followed by rounding \cite{calinescu2011maximizing}. The analogy should not be read as a transfer of approximation guarantees. Classical continuous greedy applies to monotone submodular maximization, while specialized non-monotone DR-submodular variants require assumptions and update rules that are not the ones used here \cite{bian2017continuous}. In this paper, the connection is only geometric: conditional-gradient oracles repeatedly return extreme combinatorial atoms, biasing the relaxed trajectory toward colorings that can be extracted and certified.
 
 \section{Conclusion and Outlook}
 
