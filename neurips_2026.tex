@@ -200,7 +200,7 @@ The $R(5,5,42)$ case has become a challenging heuristic-search benchmark. Exoo's
 
 \section{The Method: Continuous Frank-Wolfe Search}\label{sec:method}
 
-Section~\ref{sec:problem} cast Ramsey lower-bound construction as a pseudo-Boolean violation-minimization problem. We now turn this into a continuous Frank-Wolfe pipeline whose subsections accumulate from relaxation to a verified binary witness.
+Having set up Ramsey lower-bound construction as a certified search problem, we now cast it as pseudo-Boolean violation minimization and turn it into a continuous Frank-Wolfe pipeline. The subsections accumulate from the discrete formulation to relaxation, stochastic optimization, and finally a verified binary witness.
 
 \subsection{Discrete Optimization Formulation}\label{sec:discrete-formulation}
 
@@ -235,7 +235,7 @@ The relaxation therefore preserves the global optimum of the raw violation objec
 
 \subsection{Clique-Wise Surrogate Losses}\label{sec:surrogate}
 
-The raw expected-count objective $M$ is used for rounding and certification, but in practice it can provide a weak optimization signal. Because each clique contribution is a high-order product of numbers in $[0,1]$, the raw objective often yields very small gradients even when a candidate solution is close to creating a forbidden monochromatic clique. A first-order method can then spend many iterations reducing already-safe regions of the graph while paying insufficient attention to the most dangerous near-violations.
+The raw expected-count objective $M$ is used for rounding and certification, but in practice it can provide a weak optimization signal. Each clique contribution is a high-order product of edge probabilities, so its gradient can remain small unless the corresponding vertex set is already very close to fully monochromatic. A first-order method can then spend many iterations reducing diffuse background risk while paying insufficient attention to the local patterns most likely to become forbidden cliques after rounding.
 
 For a $r$-clique $C \in \mathcal{C}_r$ and an $s$-vertex set $D \in \mathcal{C}_s$, write
 \[
@@ -243,7 +243,7 @@ For a $r$-clique $C \in \mathcal{C}_r$ and an $s$-vertex set $D \in \mathcal{C}_
     \qquad
     p_s(D;x) = \prod_{\{i,j\} \subseteq D} (1 - x_{ij})
 \]
-for the corresponding monochromatic probabilities under the independent-edge interpretation. When one of these sets differs from a forbidden monochromatic clique by only a small number of edges, the product can still be numerically tiny, especially for larger clique sizes. The optimizer is then encouraged to distribute mass diffusely rather than to eliminate the specific substructures most likely to invalidate a witness.
+for the corresponding monochromatic probabilities under the independent-edge interpretation. These probabilities are the right quantities for certification, but not necessarily the best quantities to optimize directly. The issue is geometric decay: a $k$-vertex clique contains $\binom{k}{2}$ edges, so even if every relevant edge has probability $q$, the clique probability is only $q^{\binom{k}{2}}$. For example, a $5$-clique with all ten edge probabilities equal to $0.9$ contributes only $0.9^{10}$. Optimizing the raw count can therefore underweight large, consistently biased vertex sets that are plausible sources of rounded violations.
 
 We therefore optimize a barrier-style surrogate that penalizes each potentially monochromatic clique individually:
 \begin{equation}\label{eq:log_barrier}
@@ -253,12 +253,10 @@ We therefore optimize a barrier-style surrogate that penalizes each potentially 
     -
     \sum_{D \in \mathcal{C}_s} \log\left(1 - p_s(D;x)\right).
 \end{equation}
-The surrogate changes only the search loss. The logarithmic transformation treats each clique as an individual soft constraint, with a penalty that grows rapidly as its monochromatic probability approaches $1$. Despite the superficial resemblance, this is not a classical interior-point log-barrier: a barrier method repels iterates from the boundary of the feasible set, whereas here it is the forbidden monochromatic subgraphs that are repelled. The values $0$ and $1$ on individual edges are not penalized; the optimizer can move toward discrete edge colorings as long as no clique becomes fully monochromatic in the process.
+The surrogate changes only the search loss. The logarithmic transformation treats each clique as an individual soft constraint, with a penalty that grows rapidly as its monochromatic probability approaches $1$. Equivalently, relative to the raw product term, the scalar part of the gradient is amplified by the factor $(1-p)^{-1}$ for a clique with monochromatic probability $p$. Despite the superficial resemblance, this is not a classical interior-point log-barrier: a barrier method repels iterates from the boundary of the feasible set, whereas here it is the forbidden monochromatic subgraphs that are repelled. The values $0$ and $1$ on individual edges are not penalized; the optimizer can move toward discrete edge colorings as long as no clique becomes fully monochromatic in the process.
 
 \paragraph{Gradient clipping.}
-The logarithmic surrogate has an implementation caveat: it is undefined when any clique is monochromatic with probability $1$. This can occur through numerical saturation or by design when Frank-Wolfe is combined with a discrete heuristic that snaps fractional edge probabilities to a binary coloring. In those cases we replace each monochromatic clique probability $p$ by $\min(p,1-\varepsilon)$ before evaluating $-\log(1-p)$, for a small $\varepsilon>0$. The forward objective is then finite, and the largest per-clique penalty is controlled by $-\log \varepsilon$.
-
-The gradient through this clipping operation requires a convention. With the ordinary clamp, Frank-Wolfe is applied to the clipped objective, and cliques whose probability exceeds $1-\varepsilon$ have zero derivative with respect to $p$. This is numerically stable, but it also removes the optimization signal from precisely the saturated constraints that caused the problem. We therefore also consider a straight-through variant: the forward pass uses the clipped value, while the backward pass treats the clipping operation as the identity. This preserves the descent direction of the original product term and caps the scalar log factor at $1/\varepsilon$, at the cost of using a biased gradient estimator rather than the exact derivative of the clipped objective. We treat this variant as an optimization heuristic and report the clipping threshold and gradient convention together with the loss function in experiments.
+The logarithmic surrogate is undefined when any clique is monochromatic with probability $1$. To keep the search loss finite, we replace each monochromatic clique probability $p$ by $\min(p,1-\varepsilon)$ before evaluating $-\log(1-p)$, for a small $\varepsilon>0$. The forward objective is then finite, and the largest per-clique penalty is controlled by $-\log \varepsilon$. The gradient convention through this clipping step, including the straight-through variant used as a search heuristic, is described in \cref{sec:algorithm-run-settings}.
 
 \begin{figure}[h]
     \centering
@@ -267,7 +265,7 @@ The gradient through this clipping operation requires a convention. With the ord
     \label{fig:log-loss-k4}
 \end{figure}
 
-We treat the choice of surrogate as a design decision rather than a theorem-level necessity. The vanilla probability loss $M$ is a natural baseline; in our experiments the log-barrier surrogate empirically outperforms it, with a systematic ablation separating the surrogate from the optimizer and batching strategy left for future work.
+We treat the choice of surrogate as a design decision rather than a theorem-level necessity. The vanilla probability loss $M$ remains the certifying objective; the log-barrier surrogate is used to make the search more responsive to near-monochromatic local structure.
 
 \subsection{Frank-Wolfe Updates}\label{sec:fw-updates}
 
@@ -288,13 +286,13 @@ The iterate is then updated by
 \begin{equation}
     x_{t+1} = (1-\gamma_t)x_t + \gamma_t s_t,
 \end{equation}
-where $\gamma_t \in [0,1]$ is a step size.
+where $\gamma_t \in [0,1]$ is a step size. The schedule used in the experiments is reported in \cref{sec:algorithm-run-settings}.
 
 This update is projection-free and inexpensive once the gradient has been estimated. The oracle returns a vertex of the hypercube at each step, so when initialized at a hypercube vertex (or a convex combination of vertices) every iterate is a convex combination of explicit binary colorings rather than the result of a projection back to the feasible set.
 
 For the exact-gradient version on the smooth raw objective $M$, this update also falls under standard nonconvex Frank-Wolfe theory: under the usual smoothness and step-size assumptions, the minimum Frank-Wolfe gap among the first $T$ iterates decays as $O(T^{-1/2})$ \cite{lacostejulien2016convergence,braun2022conditional}. This is only a stationarity guarantee, not a guarantee of finding a Ramsey witness, and our reported pipeline also uses surrogate losses and stochastic clique batches. Its role is therefore to position the update as a principled projection-free baseline; successful lower-bound certificates still come from conditional-expectation extraction followed by exact verification.
 
-All experiments reported below use this vanilla Frank-Wolfe update with a standard diminishing step-size schedule. Pairwise and away-step variants are natural active-set baselines, but a careful comparison at this scale is left to future work.
+All experiments reported below use this vanilla Frank-Wolfe update. Pairwise and away-step variants are natural active-set baselines, but a careful comparison at this scale is left to future work.
 
 % Move to conclusion / extensions if we discuss multicolor Ramsey variants.
 % \paragraph{Remark (multicolor parameterization).}
@@ -338,7 +336,7 @@ so at least one of the two endpoints has value no larger than the current condit
 \[
     M(\widehat{x}) \;\leq\; M(x).
 \]
-Since $M(\widehat{x})$ is a nonnegative integer, any fractional point with $M(x) < 1$ is guaranteed to round to a Ramsey witness with $M(\widehat{x}) = 0$. This threshold is sufficient, not necessary: conditional-expectation rounding can still succeed from points with larger raw expected violation count, and the final certificate does not rely on the fractional objective value. We verify $\widehat{x}$ against the original Ramsey constraints by the clique-checking procedure described in \cref{sec:problem}.
+Since $M(\widehat{x})$ is a nonnegative integer, any fractional point with $M(x) < 1$ is guaranteed to round to a Ramsey witness with $M(\widehat{x}) = 0$. This threshold is sufficient, not necessary: conditional-expectation rounding can still succeed from points with larger raw expected violation count, and the final certificate does not rely on the fractional objective value. We verify $\widehat{x}$ against the original Ramsey constraints by the clique-checking procedure described in \cref{sec:problem}. Thus the search procedure is heuristic, but every lower bound reported below is certified only after deterministic extraction and exact verification.
 
 \section{Results}
 
@@ -415,7 +413,26 @@ Several directions follow naturally. On the algorithmic side, active-set variant
 \appendix
 
 \section{Technical appendices and supplementary material}
-The appendix collects implementation details, additional ablations, proofs for any formal statements about the batching scheme, and supplementary visualizations of recovered colorings. It also includes extended witness statistics and additional instance-by-instance results that are useful for reproducibility but not essential to the main narrative.
+The appendix collects implementation details, run settings, the batching scheme, and supplementary visualizations of recovered colorings. It also includes extended witness statistics and additional instance-by-instance results that are useful for reproducibility but not essential to the main narrative.
+
+\subsection{Algorithm summary and run settings}\label{sec:algorithm-run-settings}
+
+The computational pipeline used in the experiments is the following.
+\begin{enumerate}
+    \item Fix an instance $(r,s,n)$ and form the edge-variable representation $x \in [0,1]^{\binom{n}{2}}$.
+    \item Choose a search loss $F$: either the raw violation objective $M$ or a clique-wise surrogate such as \cref{eq:log_barrier}, with the clipping convention specified below.
+    \item Initialize a fractional edge vector $x_0$ according to the stated initialization rule.
+    \item For each epoch, shuffle the relevant vertex-set families, form mini-batches as in the batching scheme below, and run vanilla Frank-Wolfe updates using the gradient or gradient estimator of the batched search loss.
+    \item Apply conditional-expectation extraction to selected fractional iterates, always using the raw violation objective $M$.
+    \item Verify each extracted binary graph by exact clique checking in both colors. Only graphs passing this final check are counted as certificates.
+\end{enumerate}
+
+
+\paragraph{Clipping convention.}
+For a clique-wise probability $p$, the clipped log surrogate evaluates the forward term at $\tilde{p}=\min(p,1-\varepsilon)$. With the ordinary clamp, the derivative with respect to $p$ is set to zero when $p>1-\varepsilon$. In the straight-through variant, the forward pass still uses $\tilde{p}$, but the backward pass treats the clipping map as the identity. This keeps the scalar logarithmic factor bounded by $1/\varepsilon$ while preserving the product-gradient direction of the unclipped term. We use this only as an optimization heuristic; certification is unaffected because extraction and verification use $M$ and exact clique checks.
+
+\paragraph{Hyperparameters.}
+For the headline $R(5,5)$ experiments, the best results were obtained with initial Frank-Wolfe step sizes between $0.03$ and $0.08$, followed by a linearly decaying step-size schedule. We used $5000$ epochs, with each epoch making one pass through all cliques using batch size $16384$, and clipping threshold $\varepsilon=10^{-6}$ for the log surrogate. These choices affect search efficiency and the distribution of witnesses recovered, but not the validity of any reported lower bound after exact verification.
 
 \subsection{Detailed batching scheme}
 
